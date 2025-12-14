@@ -169,3 +169,4 @@ class HTMLReportGenerator:
 </html>
         """
         return Template(template_str)
+HTMLReporter = HTMLReportGenerator
