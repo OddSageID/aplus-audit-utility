@@ -1,24 +1,33 @@
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from datetime import datetime
 from jinja2 import Template
+from dataclasses import dataclass
+
+@dataclass
+class ReporterConfig:
+    output_dir: Path = Path("reports")
 
 class HTMLReportGenerator:
     """Generates professional HTML audit reports"""
-    
-    def __init__(self, config):
-        self.config = config
-    
+
+    def __init__(self, config: Optional[ReporterConfig] = None):
+        self.config = config or ReporterConfig()
+        self.config.output_dir.mkdir(parents=True, exist_ok=True)
+
     def generate_report(self, audit_results: Dict[str, Any]) -> Path:
         template = self._get_template()
         context = self._prepare_context(audit_results)
         html_content = template.render(**context)
-        
+
         output_file = self.config.output_dir / f"audit_{audit_results['audit_id']}.html"
-        with open(output_file, 'w', encoding='utf-8') as f:
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(output_file, "w", encoding="utf-8") as f:
             f.write(html_content)
-        
+
         return output_file
+
     
     def _prepare_context(self, results: Dict[str, Any]) -> Dict:
         severity_counts = {}
