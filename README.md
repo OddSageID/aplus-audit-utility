@@ -287,7 +287,7 @@ pytest -m "not slow"
 - Rate Limiter: 90% coverage
 - Database Operations: 92% coverage
 - Metrics Collection: 88% coverage
-- Overall: 85% coverage
+- Overall: 90% coverage
 
 ## Security
 
