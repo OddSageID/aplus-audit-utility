@@ -1,0 +1,78 @@
+# A+ System Audit Utility - Docker Compose Configuration
+# Author: Kevin Hormaza
+# GitHub: https://github.com/OddSageID
+
+version: '3.8'
+
+services:
+  audit-utility:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: aplus-audit-utility:latest
+    container_name: aplus-audit
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://audit:audit@postgres:5432/audit_db
+      - OUTPUT_DIR=/app/audit_results
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./audit_results:/app/audit_results
+      - ./logs:/app/logs
+    depends_on:
+      - postgres
+    command: python main.py --verbose
+    networks:
+      - audit-network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: audit-db
+    environment:
+      - POSTGRES_DB=audit_db
+      - POSTGRES_USER=audit
+      - POSTGRES_PASSWORD=audit
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - audit-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U audit"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Optional: Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: audit-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - audit-network
+
+volumes:
+  postgres_data:
+    driver: local
+  prometheus_data:
+    driver: local
+
+networks:
+  audit-network:
+    driver: bridge
+
+# Usage:
+# Start all services: docker-compose up -d
+# View logs: docker-compose logs -f audit-utility
+# Stop services: docker-compose down
+# Rebuild: docker-compose up -d --build
+# Run one-off audit: docker-compose run --rm audit-utility python main.py --quick

@@ -1,0 +1,236 @@
+# A+ System Audit Utility - Git Ignore Configuration
+# Author: Kevin Hormaza
+
+# ============================================
+# Environment & Secrets
+# ============================================
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+secrets/
+
+# ============================================
+# Python
+# ============================================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# Pytest
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.log
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre
+.pyre/
+
+# pytype
+.pytype/
+
+# ============================================
+# Database Files
+# ============================================
+*.db
+*.sqlite
+*.sqlite3
+audit_history.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# ============================================
+# Audit Results & Logs
+# ============================================
+audit_results/
+logs/
+*.log
+remediation_*/
+reports/
+
+# ============================================
+# IDE & Editor
+# ============================================
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+
+# ============================================
+# Operating System
+# ============================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ============================================
+# Docker
+# ============================================
+docker-compose.override.yml
+.dockerignore
+
+# ============================================
+# Package Managers
+# ============================================
+# npm
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Pip
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ============================================
+# Temporary Files
+# ============================================
+*.tmp
+*.temp
+*.bak
+*.backup
+*.orig
+*.cache
+.cache/
+
+# ============================================
+# Testing & CI
+# ============================================
+.tox/
+.pytest_cache/
+.hypothesis/
+test-results/
+junit/
+bandit-report.json
+
+# ============================================
+# Documentation Build
+# ============================================
+docs/_build/
+site/
+.mkdocs/
+
+# ============================================
+# Security Scanning
+# ============================================
+.snyk
+.safety/
+
+# ============================================
+# Metrics & Monitoring
+# ============================================
+prometheus_data/
+metrics/
+*.prom
+
+# ============================================
+# Project Specific
+# ============================================
+# Development artifacts
+scratch/
+notes/
+TODO.txt
+NOTES.md
+
+# Sample/test data
+sample_audits/
+test_data/
+
+# Configuration overrides (keep examples)
+config.local.yml
+settings.local.py
+
+# Generated files
+generated/
+output/
+
+# Archives
+*.zip
+*.tar.gz
+*.tgz
+*.tar
+*.rar
+*.7z
+
+# Except project submission archives
+!*FINAL*.tar.gz
+!*submission*.tar.gz

@@ -1,0 +1,138 @@
+# Dependabot Configuration for A+ System Audit Utility
+# Automates dependency updates and security vulnerability patches
+# Documentation: https://docs.github.com/en/code-security/dependabot
+
+version: 2
+
+updates:
+  # ============================================================================
+  # Python Dependencies (requirements.txt)
+  # ============================================================================
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    
+    # Pull request settings
+    open-pull-requests-limit: 10
+    reviewers:
+      - "OddSageID"
+    assignees:
+      - "OddSageID"
+    labels:
+      - "dependencies"
+      - "python"
+    
+    # Commit message configuration
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+      include: "scope"
+    
+    # Versioning strategy
+    versioning-strategy: increase
+    
+    # Security updates
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+    
+    # Group related updates
+    groups:
+      # Core dependencies
+      core-dependencies:
+        patterns:
+          - "anthropic"
+          - "openai"
+          - "pydantic"
+          - "sqlalchemy"
+          - "alembic"
+        update-types:
+          - "minor"
+          - "patch"
+      
+      # Testing dependencies
+      testing-dependencies:
+        patterns:
+          - "pytest*"
+          - "freezegun"
+        update-types:
+          - "minor"
+          - "patch"
+      
+      # Code quality tools
+      dev-dependencies:
+        patterns:
+          - "black"
+          - "flake8"
+          - "mypy"
+          - "pylint"
+        update-types:
+          - "minor"
+          - "patch"
+    
+    # Ignore specific versions
+    ignore:
+      # Example: Known breaking changes
+      # - dependency-name: "pydantic"
+      #   versions: ["2.0.0"]
+      
+      # Example: Security patches only for production
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    
+  # ============================================================================
+  # GitHub Actions
+  # ============================================================================
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+      timezone: "America/New_York"
+    
+    open-pull-requests-limit: 5
+    reviewers:
+      - "OddSageID"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    
+    # Group all GitHub Actions updates
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+  
+  # ============================================================================
+  # Docker Base Images
+  # ============================================================================
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "09:00"
+      timezone: "America/New_York"
+    
+    open-pull-requests-limit: 3
+    reviewers:
+      - "OddSageID"
+    labels:
+      - "dependencies"
+      - "docker"
+    
+    commit-message:
+      prefix: "docker"
+      include: "scope"
