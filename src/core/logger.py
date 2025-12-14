@@ -50,3 +50,19 @@ class AuditLogger:
                 cls._instance.addHandler(file_handler)
         
         return cls._instance
+
+def setup_logger(
+    name: str = "a_plus_audit",
+    level: str = "INFO",
+    log_file: Optional[Path] = None
+) -> logging.Logger:
+    """Compatibility function expected by tests."""
+    return AuditLogger.get_logger(name=name, level=level, log_file=log_file)
+
+def get_logger(
+    name: str = "a_plus_audit",
+    level: str = "INFO",
+    log_file: Optional[Path] = None
+) -> logging.Logger:
+    """Compatibility function expected by tests."""
+    return AuditLogger.get_logger(name=name, level=level, log_file=log_file)
