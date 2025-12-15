@@ -4,14 +4,20 @@ Prevents injection attacks and ensures data integrity.
 
 UPDATED FOR PYDANTIC V2 COMPATIBILITY
 """
-from pydantic import (
-    BaseModel, Field, field_validator, model_validator, ConfigDict
-)
-from typing import Optional, List, Dict, Any, Annotated
-from pydantic.types import StringConstraints
 from pathlib import Path
 from enum import Enum
 import re
+from typing import Any, Dict, List, Optional
+
+from typing_extensions import Annotated
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
+from pydantic.types import StringConstraints
 
 
 class SeverityEnum(str, Enum):

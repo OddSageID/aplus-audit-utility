@@ -39,6 +39,11 @@ Before installing, verify your environment is ready:
 # Run the setup validation script
 python setup_check.py
 
+# For CI / automation, produce machine-readable output:
+python setup_check.py --format json
+# Or use --ci to imply JSON output in CI pipelines:
+python setup_check.py --ci
+
 # This checks:
 # - Python version (3.8+)
 # - Required dependencies

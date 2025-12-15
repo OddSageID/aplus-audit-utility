@@ -1,7 +1,7 @@
 import platform
 import subprocess
-import psutil
-from typing import Dict, Any
+from typing import List
+
 from .base_collector import BaseCollector, CollectorResult, CollectorStatus
 
 class SecurityCollector(BaseCollector):
@@ -10,7 +10,7 @@ class SecurityCollector(BaseCollector):
     def requires_admin(self) -> bool:
         return True
     
-    def supported_platforms(self) -> list[str]:
+    def supported_platforms(self) -> List[str]:
         return ["Windows", "Linux", "Darwin"]
     
     async def collect(self) -> CollectorResult:
@@ -36,8 +36,11 @@ class SecurityCollector(BaseCollector):
         """Windows security checks"""
         # Check Windows Defender
         try:
-            cmd = ['powershell.exe', '-Command', 
-                   'Get-MpComputerStatus | Select-Object RealTimeProtectionEnabled | ConvertTo-Json']
+            cmd = [
+                'powershell.exe',
+                '-Command',
+                'Get-MpComputerStatus | Select-Object RealTimeProtectionEnabled | ConvertTo-Json'
+            ]
             output = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
             if output.returncode == 0:
                 import json
@@ -56,8 +59,11 @@ class SecurityCollector(BaseCollector):
         
         # Check Firewall
         try:
-            cmd = ['powershell.exe', '-Command',
-                   'Get-NetFirewallProfile | Select-Object Name,Enabled | ConvertTo-Json']
+            cmd = [
+                'powershell.exe',
+                '-Command',
+                'Get-NetFirewallProfile | Select-Object Name,Enabled | ConvertTo-Json'
+            ]
             output = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
             if output.returncode == 0:
                 import json

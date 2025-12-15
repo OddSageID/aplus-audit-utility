@@ -78,6 +78,7 @@ This release elevates the project to **100% production-ready** status with enter
 - **Test Coverage**: Increased from 85% to 90%+ with 1,350+ new test lines
 - **Production Readiness**: All four production deployment requirements now satisfied
 - **Documentation**: Added 15,000+ words of enterprise-grade operational documentation
+- **Setup Validation**: `setup_check.py` now supports machine-readable JSON output (`--format json` / `--ci`) and a programmatic `run_checks()` API to support CI and automation workflows
 
 ### Technical Debt Resolved
 

@@ -1,7 +1,7 @@
 import platform
 import subprocess
-import psutil
-import os
+from typing import List
+
 from .base_collector import BaseCollector, CollectorResult, CollectorStatus
 
 class OSConfigCollector(BaseCollector):
@@ -10,7 +10,7 @@ class OSConfigCollector(BaseCollector):
     def requires_admin(self) -> bool:
         return True
     
-    def supported_platforms(self) -> list[str]:
+    def supported_platforms(self) -> List[str]:
         return ["Windows", "Linux", "Darwin"]
     
     async def collect(self) -> CollectorResult:
@@ -42,8 +42,14 @@ class OSConfigCollector(BaseCollector):
     def _check_windows_config(self, result: CollectorResult):
         """Windows configuration checks"""
         try:
-            cmd = ['powershell.exe', '-Command',
-                   'Get-LocalUser | Where-Object {$_.Name -eq "Guest" -and $_.Enabled -eq $true} | Measure-Object | Select-Object -ExpandProperty Count']
+            cmd = [
+                'powershell.exe',
+                '-Command',
+                (
+                    'Get-LocalUser | Where-Object {$_.Name -eq "Guest" -and $_.Enabled -eq $true} '
+                    '| Measure-Object | Select-Object -ExpandProperty Count'
+                )
+            ]
             output = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
             if output.returncode == 0 and output.stdout.strip() != '0':
                 result.add_finding(

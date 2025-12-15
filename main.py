@@ -14,9 +14,8 @@ from pathlib import Path
 from datetime import datetime
 import json
 
-from src.core.config import AuditConfig, AIConfig
+from src.core.config import AIConfig, AuditConfig
 from src.core.orchestrator import AuditOrchestrator
-from src.core.logger import AuditLogger
 from src.collectors import (
     HardwareCollector,
     SecurityCollector,
@@ -65,10 +64,10 @@ def build_config(args):
     else:
         report_formats = args.formats
     
+    model_defaults = {'anthropic': 'claude-3-5-haiku-20241022', 'openai': 'gpt-4o-mini'}
     if args.quick or args.ai == 'none':
-        ai_config = AIConfig(provider='anthropic', model='claude-3-5-haiku-20241022', api_key='dummy')
+        ai_config = AIConfig(provider='none')
     else:
-        model_defaults = {'anthropic': 'claude-3-5-haiku-20241022', 'openai': 'gpt-4o-mini'}
         ai_config = AIConfig(provider=args.ai, model=args.model or model_defaults[args.ai])
     
     return AuditConfig(
@@ -169,7 +168,8 @@ def main():
     
     print(f"\n📋 Configuration:")
     print(f"   Collectors: {', '.join([c.__class__.__name__ for c in collectors])}")
-    print(f"   AI Analysis: {'Enabled' if not args.quick and args.ai != 'none' else 'Disabled'}")
+    ai_enabled = config.ai.provider in {'anthropic', 'openai'}
+    print(f"   AI Analysis: {'Enabled' if ai_enabled else 'Disabled'}")
     
     try:
         print(f"\n🚀 Starting audit at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")

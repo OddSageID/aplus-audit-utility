@@ -1,9 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 import platform
-from datetime import datetime
+import time
+from typing import Any, Dict, List, Optional
+
 import logging
 
 class CollectorStatus(Enum):
@@ -19,9 +21,9 @@ class CollectorResult:
     collector_name: str
     status: CollectorStatus
     data: Dict[str, Any] = field(default_factory=dict)
-    findings: list[Dict[str, Any]] = field(default_factory=list)
-    errors: list[str] = field(default_factory=list)
-    warnings: list[str] = field(default_factory=list)
+    findings: List[Dict[str, Any]] = field(default_factory=list)
+    errors: List[str] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
     timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
     execution_time_ms: Optional[float] = None
     
@@ -67,7 +69,7 @@ class BaseCollector(ABC):
         pass
     
     @abstractmethod
-    def supported_platforms(self) -> list[str]:
+    def supported_platforms(self) -> List[str]:
         """Return list of supported platforms: ['Windows', 'Linux', 'Darwin']"""
         pass
     
@@ -95,6 +97,7 @@ class BaseCollector(ABC):
         Execute collection with error handling and graceful degradation.
         This is the public interface that orchestrator calls.
         """
+        start_time = time.time()
         result = CollectorResult(
             collector_name=self.__class__.__name__,
             status=CollectorStatus.SKIPPED
@@ -103,25 +106,26 @@ class BaseCollector(ABC):
         # Platform check
         if not self.is_supported():
             msg = f"Platform {self.platform} not supported"
-            self.logger.warning(msg)
             result.warnings.append(msg)
+            result.execution_time_ms = (time.time() - start_time) * 1000
             return result
         
         # Permission check (graceful degradation)
         if self.requires_admin() and not self.has_required_permissions():
             if self.config.require_admin:
-                msg = f"Requires admin/root privileges (run with sudo/admin)"
-                self.logger.error(msg)
+                msg = "Requires admin/root privileges (run with sudo/admin)"
                 result.errors.append(msg)
                 result.status = CollectorStatus.FAILED
+                result.execution_time_ms = (time.time() - start_time) * 1000
                 return result
-            else:
-                msg = f"Running with limited permissions - some checks may be skipped"
-                self.logger.warning(msg)
-                result.warnings.append(msg)
+
+            msg = "Insufficient privileges; skipping checks for this collector"
+            result.warnings.append(msg)
+            result.status = CollectorStatus.SKIPPED
+            result.execution_time_ms = (time.time() - start_time) * 1000
+            return result
         
         # Execute collection
-        import time
         start_time = time.time()
         try:
             result = await self.collect()

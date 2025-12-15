@@ -1,7 +1,9 @@
-import psutil
-import cpuinfo
 import platform
-from typing import Dict, Any
+from typing import Any, Dict, List
+
+import cpuinfo
+import psutil
+
 from .base_collector import BaseCollector, CollectorResult, CollectorStatus
 
 class HardwareCollector(BaseCollector):
@@ -10,7 +12,7 @@ class HardwareCollector(BaseCollector):
     def requires_admin(self) -> bool:
         return False
     
-    def supported_platforms(self) -> list[str]:
+    def supported_platforms(self) -> List[str]:
         return ["Windows", "Linux", "Darwin"]
     
     async def collect(self) -> CollectorResult:

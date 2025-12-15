@@ -54,12 +54,15 @@ class TestConfiguration:
         assert hasattr(config, 'max_concurrent_requests')
         assert config.max_requests_per_minute > 0
     
-    def test_ai_config_validates_api_key(self):
+    def test_ai_config_validates_api_key(self, caplog):
         """Test AIConfig validates API key presence"""
         with patch.dict('os.environ', {}, clear=True):
-            # Should raise if no API key provided
-            with pytest.raises(ValueError):
-                AIConfig(provider="anthropic", api_key=None)
+            with caplog.at_level(logging.WARNING):
+                config = AIConfig(provider="anthropic", api_key=None)
+
+        assert config.provider == "none"
+        assert config.api_key is None
+        assert any("No API key found for anthropic" in message for message in caplog.messages)
     
     def test_config_output_directory_creation(self, tmp_path):
         """Test config creates output directory"""

@@ -1,6 +1,8 @@
-import psutil
 import socket
-import subprocess
+from typing import List
+
+import psutil
+
 from .base_collector import BaseCollector, CollectorResult, CollectorStatus
 
 class NetworkCollector(BaseCollector):
@@ -9,7 +11,7 @@ class NetworkCollector(BaseCollector):
     def requires_admin(self) -> bool:
         return False
     
-    def supported_platforms(self) -> list[str]:
+    def supported_platforms(self) -> List[str]:
         return ["Windows", "Linux", "Darwin"]
     
     async def collect(self) -> CollectorResult:

@@ -12,7 +12,9 @@ import sys
 import subprocess
 import os
 from pathlib import Path
-from typing import Tuple, List
+from typing import Tuple, List, Dict, Any
+import argparse
+import json
 
 
 def print_header():
@@ -247,10 +249,17 @@ def print_quick_start() -> None:
     print()
 
 
-def main():
-    """Run all validation checks"""
+def run_checks(output_format: str = "pretty") -> Dict[str, Any]:
+    """Run validation checks and return a structured result.
+
+    Args:
+        output_format: 'pretty' or 'json' - controls printed output
+
+    Returns:
+        A dict summarizing the checks and status
+    """
     print_header()
-    
+
     checks = [
         ("Python Version", check_python_version),
         ("Dependencies", check_dependencies),
@@ -258,48 +267,70 @@ def main():
         ("Permissions", check_permissions),
         ("Database", check_database),
     ]
-    
-    results = []
-    missing_packages = []
-    
+
+    results: Dict[str, Any] = {"checks": {}, "missing_packages": []}
+
     for name, check_fn in checks:
         if name == "Dependencies":
             success, missing = check_fn()
-            results.append(success)
-            missing_packages = missing
+            results["checks"][name] = success
+            results["missing_packages"] = missing
         else:
-            results.append(check_fn())
-    
-    # Additional checks that don't affect pass/fail
+            results["checks"][name] = check_fn()
+
+    # Additional non-blocking checks
     check_optional_dependencies()
     check_platform_specifics()
-    
-    # Summary
-    print("\n" + "="*70)
-    print("📊 VALIDATION SUMMARY")
-    print("="*70)
-    
-    if all(results):
-        print("\n✅ ALL CHECKS PASSED - READY TO RUN!")
-        print_quick_start()
-        sys.exit(0)
+
+    overall = all(results["checks"].values())
+    results["status"] = "pass" if overall else "fail"
+
+    # Output formatting
+    if output_format == "json":
+        print(json.dumps(results, indent=2))
     else:
-        print("\n❌ SOME CHECKS FAILED - FIX ISSUES ABOVE")
-        
-        if missing_packages:
-            print("\n💡 To install missing dependencies:")
-            print(f"   pip install {' '.join(missing_packages)}")
-            print("\n   Or install all requirements:")
-            print(f"   pip install -r requirements.txt")
-        
-        print("\n📖 Refer to README.md for detailed setup instructions")
-        print()
-        sys.exit(1)
+        # Pretty human-readable summary
+        print("\n" + "="*70)
+        print("📊 VALIDATION SUMMARY")
+        print("="*70)
+
+        if overall:
+            print("\n✅ ALL CHECKS PASSED - READY TO RUN!")
+            print_quick_start()
+        else:
+            print("\n❌ SOME CHECKS FAILED - FIX ISSUES ABOVE")
+            if results["missing_packages"]:
+                print("\n💡 To install missing dependencies:")
+                print(f"   pip install {' '.join(results['missing_packages'])}")
+                print("\n   Or install all requirements:")
+                print(f"   pip install -r requirements.txt")
+            print("\n📖 Refer to README.md for detailed setup instructions")
+
+    return results
+
+
+def main(argv: List[str] | None = None) -> int:
+    """CLI entrypoint for the setup checker."""
+    parser = argparse.ArgumentParser(description="A+ audit setup validation")
+    parser.add_argument("--format", choices=["pretty", "json"], default="pretty",
+                        help="Output format for automation (json) or humans (pretty)")
+    parser.add_argument("--ci", action="store_true", help="Run in CI mode (implies --format json)")
+
+    args = parser.parse_args(argv)
+
+    if args.ci:
+        output_format = "json"
+    else:
+        output_format = args.format
+
+    results = run_checks(output_format=output_format)
+    return 0 if results.get("status") == "pass" else 1
 
 
 if __name__ == "__main__":
     try:
-        main()
+        exit_code = main()
+        sys.exit(exit_code)
     except KeyboardInterrupt:
         print("\n\n⚠️  Validation interrupted by user")
         sys.exit(130)

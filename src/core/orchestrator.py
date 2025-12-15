@@ -1,10 +1,10 @@
-from typing import List, Dict, Any, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 import asyncio
 import platform
 import time
 import psutil
-import logging
 
 from .config import AuditConfig
 from .logger import AuditLogger
@@ -100,7 +100,11 @@ class AuditOrchestrator:
             
             # Phase 3: AI Analysis
             if self.audit_results['all_findings']:
-                self.logger.info(f"Running AI analysis on {len(self.audit_results['all_findings'])} findings")
+                if self.ai_analyzer.client:
+                    self.logger.info(f"Running AI analysis on {len(self.audit_results['all_findings'])} findings")
+                else:
+                    self.logger.info("AI analysis disabled; using fallback analysis")
+
                 self.audit_results['ai_analysis'] = await self.ai_analyzer.analyze_findings(
                     audit_data=self.audit_results,
                     findings=self.audit_results['all_findings']
@@ -252,6 +256,12 @@ class AuditOrchestrator:
                 'warnings': result.warnings,
                 'execution_time_ms': result.execution_time_ms
             }
+
+            # Log permission or error context once
+            if result.status == CollectorStatus.SKIPPED and result.warnings:
+                self.logger.warning(f"{collector_name} skipped: {result.warnings[0]}")
+            elif result.errors:
+                self.logger.error(f"{collector_name} errors: {'; '.join(result.errors)}")
             
             # Update metrics
             if self.execution_metrics:
@@ -265,9 +275,14 @@ class AuditOrchestrator:
                 self.execution_metrics.errors.extend(result.errors)
                 self.execution_metrics.warnings.extend(result.warnings)
             
+            exec_time = (
+                f"{result.execution_time_ms:.2f}ms"
+                if result.execution_time_ms is not None
+                else "N/A"
+            )
             self.logger.info(
                 f"{collector_name}: {result.status.value} "
-                f"({len(result.findings)} findings, {result.execution_time_ms:.2f}ms)"
+                f"({len(result.findings)} findings, {exec_time})"
             )
     
     def _aggregate_findings(self):
