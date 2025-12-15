@@ -86,23 +86,14 @@ class BaseCollector(ABC):
         return await self.safe_collect()
 
     def collect(self) -> CollectorResult:
-        """Synchronous wrapper expected by tests."""
-        return self._run_coro(self.safe_collect())
-
-    @staticmethod
-    def _run_coro(coro):
+        """Synchronous wrapper; raises if called from an active event loop."""
         try:
-            running_loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
         except RuntimeError:
-            running_loop = None
-
-        if running_loop and running_loop.is_running():
-            new_loop = asyncio.new_event_loop()
-            try:
-                return new_loop.run_until_complete(coro)
-            finally:
-                new_loop.close()
-        return asyncio.run(coro)
+            return asyncio.run(self.safe_collect())
+        raise RuntimeError(
+            "collect() cannot be called from a running event loop; use collect_async()"
+        )
 
     @abstractmethod
     def requires_admin(self) -> bool:
@@ -129,11 +120,12 @@ class BaseCollector(ABC):
             try:
                 import ctypes
 
-                return ctypes.windll.shell32.IsUserAnAdmin() != 0
+                return ctypes.windll.shell32.IsUserAnAdmin() != 0  # type: ignore[attr-defined]
             except Exception:
                 return False
-        else:
-            return os.geteuid() == 0
+        if hasattr(os, "geteuid"):
+            return os.geteuid() == 0  # type: ignore[attr-defined]
+        return False
 
     async def safe_collect(self) -> CollectorResult:
         """

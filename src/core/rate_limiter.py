@@ -75,8 +75,9 @@ class RateLimiter:
         """
         if self._lock is None:
             self._lock = asyncio.Lock()
+        lock = self._lock
 
-        async with self._lock:
+        async with lock:
             now = datetime.utcnow()
 
             # Check circuit breaker first
@@ -128,8 +129,9 @@ class RateLimiter:
         """
         if self._lock is None:
             self._lock = asyncio.Lock()
+        lock = self._lock
 
-        async with self._lock:
+        async with lock:
             had_request = self._concurrent_count > 0
             if had_request:
                 self._concurrent_count = max(0, self._concurrent_count - 1)
@@ -255,7 +257,7 @@ class RateLimiter:
         Raises:
             Exception: If all retries fail
         """
-        last_exception = None
+        last_exception: Exception | asyncio.TimeoutError | None = None
         wait_time = 1.0
 
         for attempt in range(max_retries + 1):

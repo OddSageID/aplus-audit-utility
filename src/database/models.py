@@ -3,6 +3,7 @@ Database models for audit history tracking.
 Supports both SQLite (local) and PostgreSQL (production).
 """
 
+from typing import Any
 from sqlalchemy import (
     Column,
     String,
@@ -20,6 +21,7 @@ from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import DeclarativeBase, relationship
 from datetime import datetime
 from enum import Enum
+
 
 class Base(DeclarativeBase):
     pass
@@ -120,7 +122,7 @@ class AuditFinding(Base):
 
     # Finding details
     check_id = Column(String(50), nullable=False)
-    severity = Column(SQLEnum(SeverityLevel), nullable=False)
+    severity: Any = Column(SQLEnum(SeverityLevel), nullable=False)
     description = Column(Text, nullable=False)
     current_value = Column(Text)
     expected_value = Column(Text)
@@ -170,7 +172,7 @@ class RemediationExecution(Base):
     rollback_script = Column(Text)
 
     # State management
-    approval_state = Column(SQLEnum(ApprovalState), default=ApprovalState.PENDING)
+    approval_state: Any = Column(SQLEnum(ApprovalState), default=ApprovalState.PENDING)
     approved_by = Column(String(100))
     approved_at = Column(DateTime)
 

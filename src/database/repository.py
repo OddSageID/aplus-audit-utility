@@ -3,7 +3,7 @@ Repository pattern for database operations.
 Provides clean abstraction over SQLAlchemy ORM.
 """
 
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, cast
 from datetime import datetime, timedelta
 from sqlalchemy import create_engine, func, desc
 from sqlalchemy.orm import sessionmaker, Session, selectinload
@@ -152,7 +152,7 @@ class AuditRepository:
                 ai_model=audit_results.get("ai_config", {}).get("model"),
                 raw_results=audit_results,
             )
-            audit_run.results_hash = self._generate_results_hash(
+            cast(Any, audit_run).results_hash = self._generate_results_hash(
                 self._build_integrity_payload(audit_run, audit_results)
             )
 
@@ -273,7 +273,7 @@ class AuditRepository:
         """Get unresolved findings across all audits"""
         session = self._get_session()
         try:
-            query = session.query(AuditFinding).filter(AuditFinding.resolved.is_(False))
+            query: Any = session.query(AuditFinding).filter(AuditFinding.resolved.is_(False))
 
             if severity:
                 query = query.filter(AuditFinding.severity == severity)
@@ -290,9 +290,9 @@ class AuditRepository:
         try:
             finding = session.query(AuditFinding).filter(AuditFinding.id == finding_id).first()
             if finding:
-                finding.resolved = True
-                finding.resolved_at = datetime.utcnow()
-                finding.resolution_notes = resolution_notes
+                cast(Any, finding).resolved = True
+                cast(Any, finding).resolved_at = datetime.utcnow()
+                cast(Any, finding).resolution_notes = resolution_notes
                 session.commit()
                 self.logger.info(f"Marked finding {finding_id} as resolved")
                 return True
@@ -332,9 +332,9 @@ class AuditRepository:
             )
 
             if remediation:
-                remediation.approval_state = state
-                remediation.approved_by = approved_by
-                remediation.approved_at = datetime.utcnow()
+                cast(Any, remediation).approval_state = state
+                cast(Any, remediation).approved_by = approved_by
+                cast(Any, remediation).approved_at = datetime.utcnow()
                 session.commit()
                 self.logger.info(f"Updated remediation {remediation_id} to {state}")
                 return True
@@ -366,14 +366,14 @@ class AuditRepository:
             )
 
             if remediation:
-                remediation.executed_at = datetime.utcnow()
-                remediation.executed_by = executed_by
-                remediation.execution_success = success
-                remediation.execution_log = execution_log
-                remediation.execution_duration_seconds = duration_seconds
-                remediation.pre_execution_state = pre_state
-                remediation.post_execution_state = post_state
-                remediation.approval_state = (
+                cast(Any, remediation).executed_at = datetime.utcnow()
+                cast(Any, remediation).executed_by = executed_by
+                cast(Any, remediation).execution_success = success
+                cast(Any, remediation).execution_log = execution_log
+                cast(Any, remediation).execution_duration_seconds = duration_seconds
+                cast(Any, remediation).pre_execution_state = pre_state
+                cast(Any, remediation).post_execution_state = post_state
+                cast(Any, remediation).approval_state = (
                     ApprovalState.EXECUTED if success else ApprovalState.FAILED
                 )
                 session.commit()
@@ -408,33 +408,21 @@ class AuditRepository:
                     "high_findings": 0,
                 }
 
-            avg_risk_score = (
-                session.query(func.avg(AuditRun.risk_score))
-                .filter(AuditRun.hostname == hostname if hostname else True)
-                .scalar()
-                or 0
-            )
+            avg_query = session.query(func.avg(AuditRun.risk_score))
+            findings_query = session.query(func.sum(AuditRun.total_findings))
+            critical_query = session.query(func.sum(AuditRun.critical_count))
+            high_query = session.query(func.sum(AuditRun.high_count))
 
-            total_findings = (
-                session.query(func.sum(AuditRun.total_findings))
-                .filter(AuditRun.hostname == hostname if hostname else True)
-                .scalar()
-                or 0
-            )
+            if hostname:
+                avg_query = avg_query.filter(AuditRun.hostname == hostname)
+                findings_query = findings_query.filter(AuditRun.hostname == hostname)
+                critical_query = critical_query.filter(AuditRun.hostname == hostname)
+                high_query = high_query.filter(AuditRun.hostname == hostname)
 
-            critical_findings = (
-                session.query(func.sum(AuditRun.critical_count))
-                .filter(AuditRun.hostname == hostname if hostname else True)
-                .scalar()
-                or 0
-            )
-
-            high_findings = (
-                session.query(func.sum(AuditRun.high_count))
-                .filter(AuditRun.hostname == hostname if hostname else True)
-                .scalar()
-                or 0
-            )
+            avg_risk_score = avg_query.scalar() or 0
+            total_findings = findings_query.scalar() or 0
+            critical_findings = critical_query.scalar() or 0
+            high_findings = high_query.scalar() or 0
 
             return {
                 "total_audits": total_audits,
