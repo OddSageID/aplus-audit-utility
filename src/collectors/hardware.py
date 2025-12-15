@@ -25,13 +25,24 @@ class HardwareCollector(BaseCollector):
         try:
             # CPU Information
             cpu_info = cpuinfo.get_cpu_info()
+            cpu_freq_fn = getattr(psutil, "cpu_freq", None)
+            cpu_freq = None
+            try:
+                if cpu_freq_fn:
+                    freq_obj = cpu_freq_fn()
+                    cpu_freq = freq_obj.current if freq_obj else None
+            except Exception as e:
+                # Permission errors or missing API should not break collection
+                result.errors.append(f"CPU frequency unavailable: {e}")
+                cpu_freq = None
+
             result.data['cpu'] = {
                 'brand': cpu_info.get('brand_raw', 'Unknown'),
                 'architecture': cpu_info.get('arch', 'Unknown'),
                 'bits': cpu_info.get('bits', 0),
                 'count': psutil.cpu_count(logical=False),
                 'threads': psutil.cpu_count(logical=True),
-                'frequency_mhz': psutil.cpu_freq().current if psutil.cpu_freq() else 'Unknown',
+                'frequency_mhz': cpu_freq,
                 'current_usage_percent': psutil.cpu_percent(interval=1)
             }
             
