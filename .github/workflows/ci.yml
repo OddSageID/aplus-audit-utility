@@ -227,7 +227,7 @@ jobs:
         fi
 
     - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       if: steps.release_exists.outputs.exists == 'false'
       with:
         tag_name: v${{ steps.get_version.outputs.version }}
