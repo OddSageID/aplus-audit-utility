@@ -7,7 +7,8 @@ UPDATED FOR PYDANTIC V2 COMPATIBILITY
 from pydantic import (
     BaseModel, Field, field_validator, model_validator, ConfigDict
 )
-from typing import Optional, List, Dict, Any, Annotated
+from typing import Optional, List, Dict, Any
+from typing_extensions import Annotated
 from pydantic.types import StringConstraints
 from pathlib import Path
 from enum import Enum

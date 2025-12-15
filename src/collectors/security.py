@@ -1,7 +1,7 @@
 import platform
 import subprocess
 import psutil
-from typing import Dict, Any
+from typing import Dict, Any, List
 from .base_collector import BaseCollector, CollectorResult, CollectorStatus
 
 class SecurityCollector(BaseCollector):
@@ -9,8 +9,8 @@ class SecurityCollector(BaseCollector):
     
     def requires_admin(self) -> bool:
         return True
-    
-    def supported_platforms(self) -> list[str]:
+
+    def supported_platforms(self) -> List[str]:
         return ["Windows", "Linux", "Darwin"]
     
     async def collect(self) -> CollectorResult:

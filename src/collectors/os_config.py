@@ -2,6 +2,7 @@ import platform
 import subprocess
 import psutil
 import os
+from typing import List
 from .base_collector import BaseCollector, CollectorResult, CollectorStatus
 
 class OSConfigCollector(BaseCollector):
@@ -9,8 +10,8 @@ class OSConfigCollector(BaseCollector):
     
     def requires_admin(self) -> bool:
         return True
-    
-    def supported_platforms(self) -> list[str]:
+
+    def supported_platforms(self) -> List[str]:
         return ["Windows", "Linux", "Darwin"]
     
     async def collect(self) -> CollectorResult:

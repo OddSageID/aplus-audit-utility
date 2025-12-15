@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from pathlib import Path
 import os
 from dotenv import load_dotenv
@@ -49,7 +49,7 @@ class AuditConfig:
     # Output settings
     output_dir: Path = field(default_factory=lambda: Path("./audit_results"))
     generate_remediation: bool = True
-    report_formats: list[str] = field(default_factory=lambda: ["html", "json"])
+    report_formats: List[str] = field(default_factory=lambda: ["html", "json"])
     
     # Logging
     log_level: str = "INFO"

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
 from enum import Enum
 import platform
@@ -19,9 +19,9 @@ class CollectorResult:
     collector_name: str
     status: CollectorStatus
     data: Dict[str, Any] = field(default_factory=dict)
-    findings: list[Dict[str, Any]] = field(default_factory=list)
-    errors: list[str] = field(default_factory=list)
-    warnings: list[str] = field(default_factory=list)
+    findings: List[Dict[str, Any]] = field(default_factory=list)
+    errors: List[str] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
     timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
     execution_time_ms: Optional[float] = None
     
@@ -67,7 +67,7 @@ class BaseCollector(ABC):
         pass
     
     @abstractmethod
-    def supported_platforms(self) -> list[str]:
+    def supported_platforms(self) -> List[str]:
         """Return list of supported platforms: ['Windows', 'Linux', 'Darwin']"""
         pass
     
