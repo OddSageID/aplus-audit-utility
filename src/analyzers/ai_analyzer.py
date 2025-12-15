@@ -140,12 +140,12 @@ class AIAnalyzer:
                 validated = validate_ai_response(response_data)
                 return validated.dict()
             except (json.JSONDecodeError, ValidationError) as e:
-                self.logger.error(f"Invalid AI response: {e}")
+                self.logger.error("Invalid AI response: %s", e)
                 self.total_api_errors += 1
                 return self._fallback_analysis(findings)
 
         except Exception as e:
-            self.logger.error(f"AI analysis failed: {e}")
+            self.logger.error("AI analysis failed: %s", e)
             self.total_api_errors += 1
             return self._fallback_analysis(findings)
 
@@ -208,7 +208,7 @@ Script:"""
             return script
 
         except Exception as e:
-            self.logger.error(f"Remediation script generation failed: {e}")
+            self.logger.error("Remediation script generation failed: %s", e)
             self.total_api_errors += 1
             return self._fallback_remediation_script(finding, platform)
 

@@ -36,7 +36,7 @@ class AIConfig:
                 alt_key = "OPENAI_API_KEY" if self.provider == "openai" else "ANTHROPIC_API_KEY"
                 self.api_key = os.getenv(alt_key)
             if not self.api_key:
-                logger.warning(f"No API key found for {self.provider}; disabling AI features")
+                logger.warning("No API key found for %s; disabling AI features", self.provider)
                 self.provider = "none"
 
 

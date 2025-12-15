@@ -136,7 +136,7 @@ def save_results(results, config):
 
     if "json" in config.report_formats:
         json_file = config.output_dir / f"audit_{audit_id}.json"
-        with open(json_file, "w") as f:
+        with open(json_file, "w", encoding="utf-8") as f:
             json.dump(results, f, indent=2)
         output_files.append(("JSON Report", json_file))
 

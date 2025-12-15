@@ -52,7 +52,7 @@ class AuditRepository:
 
         # Create tables if they don't exist
         Base.metadata.create_all(bind=self.engine)
-        self.logger.info(f"Database initialized: {database_url}")
+        self.logger.info("Database initialized: %s", database_url)
 
     def _get_session(self) -> Session:
         """Get database session"""
@@ -185,7 +185,7 @@ class AuditRepository:
                 audit_run.remediations.append(remediation)
 
             session.commit()
-            self.logger.info(f"Saved audit run: {audit_run.audit_id}")
+            self.logger.info("Saved audit run: %s", audit_run.audit_id)
             # Reload with relationships eager loaded so the object is usable after session close
             loaded = (
                 session.query(AuditRun)
@@ -197,7 +197,7 @@ class AuditRepository:
 
         except SQLAlchemyError as e:
             session.rollback()
-            self.logger.error(f"Failed to save audit run: {e}")
+            self.logger.error("Failed to save audit run: %s", e)
             raise
         finally:
             session.close()
@@ -294,12 +294,12 @@ class AuditRepository:
                 cast(Any, finding).resolved_at = datetime.utcnow()
                 cast(Any, finding).resolution_notes = resolution_notes
                 session.commit()
-                self.logger.info(f"Marked finding {finding_id} as resolved")
+                self.logger.info("Marked finding %s as resolved", finding_id)
                 return True
             return False
         except SQLAlchemyError as e:
             session.rollback()
-            self.logger.error(f"Failed to mark finding resolved: {e}")
+            self.logger.error("Failed to mark finding resolved: %s", e)
             return False
         finally:
             session.close()
@@ -336,12 +336,12 @@ class AuditRepository:
                 cast(Any, remediation).approved_by = approved_by
                 cast(Any, remediation).approved_at = datetime.utcnow()
                 session.commit()
-                self.logger.info(f"Updated remediation {remediation_id} to {state}")
+                self.logger.info("Updated remediation %s to %s", remediation_id, state)
                 return True
             return False
         except SQLAlchemyError as e:
             session.rollback()
-            self.logger.error(f"Failed to update remediation approval: {e}")
+            self.logger.error("Failed to update remediation approval: %s", e)
             return False
         finally:
             session.close()
@@ -384,7 +384,7 @@ class AuditRepository:
             return False
         except SQLAlchemyError as e:
             session.rollback()
-            self.logger.error(f"Failed to record remediation execution: {e}")
+            self.logger.error("Failed to record remediation execution: %s", e)
             return False
         finally:
             session.close()

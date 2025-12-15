@@ -32,9 +32,9 @@ class AuditOrchestrator:
         if config.database_enabled:
             try:
                 self.repository = AuditRepository(database_url=config.database_url)
-                self.logger.info(f"Database initialized: {config.database_url}")
+                self.logger.info("Database initialized: %s", config.database_url)
             except Exception as e:
-                self.logger.error(f"Failed to initialize database: {e}")
+                self.logger.error("Failed to initialize database: %s", e)
                 self.repository = None
 
         # Initialize metrics collector
@@ -52,7 +52,7 @@ class AuditOrchestrator:
     def register_collector(self, collector: BaseCollector):
         """Register a data collector"""
         self.collectors.append(collector)
-        self.logger.info(f"Registered: {collector.__class__.__name__}")
+        self.logger.info("Registered: %s", collector.__class__.__name__)
 
     async def run_audit(self) -> Dict[str, Any]:
         """
@@ -102,9 +102,9 @@ class AuditOrchestrator:
         self.execution_metrics = None
         self.start_time = time.time()
 
-        self.logger.info(f"Starting audit {self.audit_results['audit_id']}")
-        self.logger.info(f"Platform: {self.audit_results['platform']}")
-        self.logger.info(f"Registered collectors: {len(self.collectors)}")
+        self.logger.info("Starting audit %s", self.audit_results["audit_id"])
+        self.logger.info("Platform: %s", self.audit_results["platform"])
+        self.logger.info("Registered collectors: %d", len(self.collectors))
 
         # Initialize metrics
         if self.config.metrics_enabled:
@@ -158,7 +158,7 @@ class AuditOrchestrator:
                     )
                     self.logger.info("Audit results saved to database")
                 except Exception as e:
-                    self.logger.error(f"Failed to save audit to database: {e}")
+                    self.logger.error("Failed to save audit to database: %s", e)
 
             # Phase 7: Record metrics
             if self.metrics_collector and self.execution_metrics:
@@ -166,12 +166,12 @@ class AuditOrchestrator:
                 self.logger.info("Metrics recorded")
 
             risk_score = self.audit_results["ai_analysis"].get("risk_score", 0)
-            self.logger.info(f"Audit complete - Risk Score: {risk_score}/100")
+            self.logger.info("Audit complete - Risk Score: %s/100", risk_score)
 
             return self.audit_results
 
         except Exception as e:
-            self.logger.error(f"Audit execution failed: {e}", exc_info=True)
+            self.logger.error("Audit execution failed: %s", e, exc_info=True)
             raise
 
     def _init_metrics(self) -> AuditMetrics:
@@ -264,7 +264,7 @@ class AuditOrchestrator:
         # Store results and update metrics
         for collector, result in zip(self.collectors, results):
             if isinstance(result, Exception):
-                self.logger.error(f"{collector.__class__.__name__} raised exception: {result}")
+                self.logger.error("%s raised exception: %s", collector.__class__.__name__, result)
                 if self.execution_metrics:
                     self.execution_metrics.collectors_failed += 1
                     self.execution_metrics.errors.append(str(result))
@@ -282,9 +282,9 @@ class AuditOrchestrator:
 
             # Log permission or error context once
             if result.status == CollectorStatus.SKIPPED and result.warnings:
-                self.logger.warning(f"{collector_name} skipped: {result.warnings[0]}")
+                self.logger.warning("%s skipped: %s", collector_name, result.warnings[0])
             elif result.errors:
-                self.logger.error(f"{collector_name} errors: {'; '.join(result.errors)}")
+                self.logger.error("%s errors: %s", collector_name, "; ".join(result.errors))
 
             # Update metrics
             if self.execution_metrics:
@@ -304,8 +304,11 @@ class AuditOrchestrator:
                 else "N/A"
             )
             self.logger.info(
-                f"{collector_name}: {result.status.value} "
-                f"({len(result.findings)} findings, {exec_time})"
+                "%s: %s (%d findings, %s)",
+                collector_name,
+                result.status.value,
+                len(result.findings),
+                exec_time,
             )
 
     def _aggregate_findings(self):
@@ -344,7 +347,7 @@ class AuditOrchestrator:
                     "finding": finding,
                 }
             except Exception as e:
-                self.logger.error(f"Failed to generate script for {finding['check_id']}: {e}")
+                self.logger.error("Failed to generate script for %s: %s", finding["check_id"], e)
 
         self.logger.info(
             f"Generated {len(self.audit_results['remediation_scripts'])} remediation scripts"

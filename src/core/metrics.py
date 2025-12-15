@@ -347,7 +347,7 @@ class MetricsCollector:
         if isinstance(name_or_metrics, AuditMetrics):
             metrics = name_or_metrics
             self.metrics_history.append(metrics)
-            self.logger.info(f"Recorded metrics for audit {metrics.audit_id}")
+            self.logger.info("Recorded metrics for audit %s", metrics.audit_id)
             return
 
         # Custom metric path

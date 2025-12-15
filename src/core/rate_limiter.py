@@ -280,7 +280,7 @@ class RateLimiter:
 
             except asyncio.TimeoutError as e:
                 last_exception = e
-                self.logger.warning(f"Request timeout (attempt {attempt + 1}/{max_retries + 1})")
+                self.logger.warning("Request timeout (attempt %s/%s)", attempt + 1, max_retries + 1)
                 await self.release(success=False)
 
             except Exception as e:

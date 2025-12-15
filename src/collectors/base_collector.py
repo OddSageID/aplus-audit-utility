@@ -171,7 +171,7 @@ class BaseCollector(ABC):
             if result.execution_time_ms is None:
                 result.execution_time_ms = duration_ms
         except Exception as e:
-            self.logger.error(f"Collection failed: {str(e)}", exc_info=True)
+            self.logger.error("Collection failed: %s", str(e), exc_info=True)
             result.errors.append(str(e))
             result.status = CollectorStatus.FAILED
             result.execution_time_ms = (time.time() - start_time) * 1000.0

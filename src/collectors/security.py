@@ -40,7 +40,7 @@ class SecurityCollector(BaseCollector):
                 "-Command",
                 "Get-MpComputerStatus | Select-Object RealTimeProtectionEnabled | ConvertTo-Json",
             ]
-            output = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            output = subprocess.run(cmd, capture_output=True, text=True, timeout=10, check=False)
             if output.returncode == 0:
                 import json
 
@@ -64,7 +64,7 @@ class SecurityCollector(BaseCollector):
                 "-Command",
                 "Get-NetFirewallProfile | Select-Object Name,Enabled | ConvertTo-Json",
             ]
-            output = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            output = subprocess.run(cmd, capture_output=True, text=True, timeout=10, check=False)
             if output.returncode == 0:
                 import json
 
@@ -91,7 +91,7 @@ class SecurityCollector(BaseCollector):
                 "-Command",
                 r'Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name EnableLUA | Select-Object -ExpandProperty EnableLUA',
             ]
-            output = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            output = subprocess.run(cmd, capture_output=True, text=True, timeout=10, check=False)
             if output.returncode == 0 and output.stdout.strip() != "1":
                 result.add_finding(
                     check_id="CIS-2.3.17.1",
@@ -109,7 +109,7 @@ class SecurityCollector(BaseCollector):
         # Check firewall
         try:
             ufw_output = subprocess.run(
-                ["ufw", "status"], capture_output=True, text=True, timeout=5
+                ["ufw", "status"], capture_output=True, text=True, timeout=5, check=False
             )
             if ufw_output.returncode == 0 and "Status: active" not in ufw_output.stdout:
                 result.add_finding(
@@ -147,7 +147,7 @@ class SecurityCollector(BaseCollector):
                 "/usr/libexec/ApplicationFirewall/socketfilterfw",
                 "--getglobalstate",
             ]
-            output = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            output = subprocess.run(cmd, capture_output=True, text=True, timeout=5, check=False)
             if output.returncode == 0 and "enabled" not in output.stdout.lower():
                 result.add_finding(
                     check_id="MAC-FW-001",

@@ -410,11 +410,11 @@ class SLOMonitor:
 
         # Log violation
         if threshold.severity == AlertSeverity.CRITICAL:
-            self.logger.critical(f"SLO VIOLATION: {threshold.description}")
+            self.logger.critical("SLO VIOLATION: %s", threshold.description)
         elif threshold.severity == AlertSeverity.HIGH:
-            self.logger.error(f"SLO VIOLATION: {threshold.description}")
+            self.logger.error("SLO VIOLATION: %s", threshold.description)
         else:
-            self.logger.warning(f"SLO VIOLATION: {threshold.description}")
+            self.logger.warning("SLO VIOLATION: %s", threshold.description)
 
     def get_violation_summary(self) -> Dict:
         """Get summary of recent SLO violations"""

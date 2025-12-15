@@ -52,7 +52,7 @@ class OSConfigCollector(BaseCollector):
                     "| Measure-Object | Select-Object -ExpandProperty Count"
                 ),
             ]
-            output = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            output = subprocess.run(cmd, capture_output=True, text=True, timeout=10, check=False)
             if output.returncode == 0 and output.stdout.strip() != "0":
                 result.add_finding(
                     check_id="CIS-2.2.1-001",
