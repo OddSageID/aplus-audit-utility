@@ -172,7 +172,8 @@ class TestAuditOrchestrator:
     
     @patch('src.collectors.hardware.HardwareCollector')
     @patch('src.collectors.security.SecurityCollector')
-    def test_orchestrator_runs_collectors(self, mock_security, mock_hardware, orchestrator):
+    @pytest.mark.asyncio
+    async def test_orchestrator_runs_collectors(self, mock_security, mock_hardware, orchestrator):
         """Test orchestrator executes collectors"""
         # Mock collector results
         mock_hw_result = Mock()
@@ -189,18 +190,19 @@ class TestAuditOrchestrator:
         mock_security.return_value.collect.return_value = mock_sec_result
         
         # Run audit
-        result = orchestrator.run_audit()
+        result = await orchestrator.run_audit()
         
         assert result is not None
         assert "collectors" in result or isinstance(result, dict)
     
-    def test_orchestrator_handles_collector_failure(self, orchestrator):
+    @pytest.mark.asyncio
+    async def test_orchestrator_handles_collector_failure(self, orchestrator):
         """Test orchestrator handles collector failures gracefully"""
         with patch('src.collectors.hardware.HardwareCollector') as mock_collector:
             mock_collector.return_value.collect.side_effect = Exception("Collector failed")
             
             # Should not crash
-            result = orchestrator.run_audit()
+            result = await orchestrator.run_audit()
             
             # Should still return a result
             assert result is not None
@@ -224,26 +226,29 @@ class TestAuditOrchestrator:
         # Should attempt parallel execution
         # Implementation dependent
     
-    def test_orchestrator_sequential_execution(self, orchestrator):
+    @pytest.mark.asyncio
+    async def test_orchestrator_sequential_execution(self, orchestrator):
         """Test orchestrator can run sequentially"""
         orchestrator.config.parallel_execution = False
         
         # Should run collectors sequentially
-        result = orchestrator.run_audit()
+        result = await orchestrator.run_audit()
         assert result is not None
     
-    def test_orchestrator_generates_audit_id(self, orchestrator):
+    @pytest.mark.asyncio
+    async def test_orchestrator_generates_audit_id(self, orchestrator):
         """Test orchestrator generates unique audit IDs"""
-        result1 = orchestrator.run_audit()
-        result2 = orchestrator.run_audit()
+        result1 = await orchestrator.run_audit()
+        result2 = await orchestrator.run_audit()
         
         # Each audit should have unique ID
         if "audit_id" in result1 and "audit_id" in result2:
             assert result1["audit_id"] != result2["audit_id"]
     
-    def test_orchestrator_includes_metadata(self, orchestrator):
+    @pytest.mark.asyncio
+    async def test_orchestrator_includes_metadata(self, orchestrator):
         """Test audit results include metadata"""
-        result = orchestrator.run_audit()
+        result = await orchestrator.run_audit()
         
         # Should include platform, timestamp, etc.
         assert isinstance(result, dict)
@@ -343,7 +348,8 @@ class TestMetricsCollector:
 class TestCoreIntegration:
     """Integration tests for core components"""
     
-    def test_config_logger_orchestrator_integration(self, tmp_path):
+    @pytest.mark.asyncio
+    async def test_config_logger_orchestrator_integration(self, tmp_path):
         """Test integration of config, logger, and orchestrator"""
         # Setup configuration
         config = AuditConfig(
@@ -364,7 +370,7 @@ class TestCoreIntegration:
         
         # Run audit
         logger.info("Starting integration test audit")
-        result = orchestrator.run_audit()
+        result = await orchestrator.run_audit()
         logger.info("Audit completed")
         
         # Verify results
@@ -373,7 +379,8 @@ class TestCoreIntegration:
             assert config.log_file.exists()
         assert result is not None
     
-    def test_end_to_end_audit_flow(self, tmp_path):
+    @pytest.mark.asyncio
+    async def test_end_to_end_audit_flow(self, tmp_path):
         """Test complete audit flow from config to output"""
         # Configuration
         config = AuditConfig(
@@ -384,7 +391,7 @@ class TestCoreIntegration:
         
         # Run orchestrator
         orchestrator = AuditOrchestrator(config)
-        audit_result = orchestrator.run_audit()
+        audit_result = await orchestrator.run_audit()
         
         # Generate reports
         from src.reporters.html_report import HTMLReporter
@@ -450,13 +457,14 @@ class TestErrorHandling:
         # Should either raise error or default to valid value
         assert config.timeout_seconds > 0 or ValueError
     
-    def test_orchestrator_handles_no_collectors(self):
+    @pytest.mark.asyncio
+    async def test_orchestrator_handles_no_collectors(self):
         """Test orchestrator handles case with no collectors"""
         config = AuditConfig()
         orchestrator = AuditOrchestrator(config)
         
         # Should handle gracefully
-        result = orchestrator.run_audit()
+        result = await orchestrator.run_audit()
         assert result is not None
     
     def test_metrics_handles_invalid_metric_type(self):

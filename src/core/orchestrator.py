@@ -57,25 +57,13 @@ class AuditOrchestrator:
         self.collectors.append(collector)
         self.logger.info(f"Registered: {collector.__class__.__name__}")
     
-    def run_audit(self) -> Dict[str, Any]:
-        """Synchronous wrapper for async audit execution (test-friendly)."""
-        return self._run_coro(self.run_audit_async())
-
-    @staticmethod
-    def _run_coro(coro):
-        """Run coroutine safely regardless of existing event loop."""
-        try:
-            running_loop = asyncio.get_running_loop()
-        except RuntimeError:
-            running_loop = None
-
-        if running_loop and running_loop.is_running():
-            new_loop = asyncio.new_event_loop()
-            try:
-                return new_loop.run_until_complete(coro)
-            finally:
-                new_loop.close()
-        return asyncio.run(coro)
+    async def run_audit(self) -> Dict[str, Any]:
+        """
+        Async entrypoint for executing an audit.
+        
+        Note: Event loop ownership is delegated to the caller (e.g., CLI via asyncio.run).
+        """
+        return await self.run_audit_async()
 
     def _generate_audit_id(self) -> str:
         """Generate a unique audit identifier."""
