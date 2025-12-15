@@ -51,3 +51,19 @@ def get_logger(
 ) -> logging.Logger:
     """Compatibility function expected by tests."""
     return setup_logger(name=name, level=level, log_file=log_file)
+
+
+class AuditLogger:
+    """
+    Backwards-compatible logger accessor.
+    Orchestrator and legacy callers import this symbol directly.
+    """
+
+    @classmethod
+    def get_logger(
+        cls,
+        name: str = "a_plus_audit",
+        level: str = "INFO",
+        log_file: Optional[Path] = None,
+    ) -> logging.Logger:
+        return setup_logger(name=name, level=level, log_file=log_file)
