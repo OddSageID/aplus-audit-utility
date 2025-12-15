@@ -5,11 +5,11 @@ from .os_config import OSConfigCollector
 from .network import NetworkCollector
 
 __all__ = [
-    'BaseCollector',
-    'CollectorResult',
-    'CollectorStatus',
-    'HardwareCollector',
-    'SecurityCollector',
-    'OSConfigCollector',
-    'NetworkCollector'
+    "BaseCollector",
+    "CollectorResult",
+    "CollectorStatus",
+    "HardwareCollector",
+    "SecurityCollector",
+    "OSConfigCollector",
+    "NetworkCollector",
 ]

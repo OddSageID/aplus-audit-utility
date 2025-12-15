@@ -43,14 +43,15 @@ def test_main_exit_codes(monkeypatch):
 def test_main_ci_flag(monkeypatch):
     # CI flag should set JSON output
     captured = {}
+
     def fake_run(*args, **kwargs):
         # Accept positional or keyword for compatibility
-        captured['format'] = kwargs.get('output_format') or (args[0] if args else None)
+        captured["format"] = kwargs.get("output_format") or (args[0] if args else None)
         return {"status": "pass"}
 
     monkeypatch.setattr(setup_check, "run_checks", fake_run)
     assert setup_check.main(["--ci"]) == 0
-    assert captured['format'] == 'json'
+    assert captured["format"] == "json"
 
 
 def test_check_env_file_detects_placeholder(tmp_path, monkeypatch):

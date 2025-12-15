@@ -90,6 +90,20 @@ python main.py --collectors security
 python main.py --output ./my_audits
 ```
 
+## Formatting
+
+We use Black for code formatting. To format locally:
+
+```bash
+python -m black src tests main.py setup_check.py
+```
+
+To verify formatting (same command CI runs):
+
+```bash
+python -m black --check src tests main.py setup_check.py
+```
+
 ### Advanced Options
 
 ```bash

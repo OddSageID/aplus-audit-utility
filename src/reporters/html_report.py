@@ -4,9 +4,11 @@ from datetime import datetime
 from jinja2 import Template
 from dataclasses import dataclass
 
+
 @dataclass
 class ReporterConfig:
     output_dir: Path = Path("reports")
+
 
 class HTMLReportGenerator:
     """Generates professional HTML audit reports"""
@@ -19,14 +21,14 @@ class HTMLReportGenerator:
         """
         Backwards-compatible wrapper to generate HTML to a specific path.
         """
-        if 'all_findings' not in audit_results:
+        if "all_findings" not in audit_results:
             findings = []
-            for collector in audit_results.get('collectors', {}).values():
-                findings.extend(collector.get('findings', []))
+            for collector in audit_results.get("collectors", {}).values():
+                findings.extend(collector.get("findings", []))
             audit_results = {
                 **audit_results,
-                'all_findings': findings,
-                'collector_results': audit_results.get('collectors', {})
+                "all_findings": findings,
+                "collector_results": audit_results.get("collectors", {}),
             }
 
         if output_file:
@@ -40,7 +42,9 @@ class HTMLReportGenerator:
 
         return self.generate_report(audit_results)
 
-    def generate_report(self, audit_results: Dict[str, Any], filename: Optional[str] = None) -> Path:
+    def generate_report(
+        self, audit_results: Dict[str, Any], filename: Optional[str] = None
+    ) -> Path:
         template = self._get_template()
         context = self._prepare_context(audit_results)
         html_content = template.render(**context)
@@ -54,40 +58,39 @@ class HTMLReportGenerator:
 
         return output_file
 
-    
     def _prepare_context(self, results: Dict[str, Any]) -> Dict:
         severity_counts = {}
-        for finding in results['all_findings']:
-            severity = finding['severity']
+        for finding in results["all_findings"]:
+            severity = finding["severity"]
             severity_counts[severity] = severity_counts.get(severity, 0) + 1
-        
-        risk_score = results.get('ai_analysis', {}).get('risk_score', 0)
-        risk_level = 'LOW'
-        risk_color = '#28a745'
-        
+
+        risk_score = results.get("ai_analysis", {}).get("risk_score", 0)
+        risk_level = "LOW"
+        risk_color = "#28a745"
+
         if risk_score >= 75:
-            risk_level, risk_color = 'CRITICAL', '#dc3545'
+            risk_level, risk_color = "CRITICAL", "#dc3545"
         elif risk_score >= 50:
-            risk_level, risk_color = 'HIGH', '#fd7e14'
+            risk_level, risk_color = "HIGH", "#fd7e14"
         elif risk_score >= 25:
-            risk_level, risk_color = 'MEDIUM', '#ffc107'
-        
+            risk_level, risk_color = "MEDIUM", "#ffc107"
+
         return {
-            'audit_id': results.get('audit_id', ''),
-            'timestamp': results.get('timestamp', ''),
-            'platform': results.get('platform', 'Unknown'),
-            'hostname': results.get('hostname', 'Unknown'),
-            'risk_score': risk_score,
-            'risk_level': risk_level,
-            'risk_color': risk_color,
-            'total_findings': len(results['all_findings']),
-            'severity_counts': severity_counts,
-            'findings': results['all_findings'],
-            'ai_analysis': results.get('ai_analysis', {}),
-            'collector_results': results['collector_results'],
-            'generated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            "audit_id": results.get("audit_id", ""),
+            "timestamp": results.get("timestamp", ""),
+            "platform": results.get("platform", "Unknown"),
+            "hostname": results.get("hostname", "Unknown"),
+            "risk_score": risk_score,
+            "risk_level": risk_level,
+            "risk_color": risk_color,
+            "total_findings": len(results["all_findings"]),
+            "severity_counts": severity_counts,
+            "findings": results["all_findings"],
+            "ai_analysis": results.get("ai_analysis", {}),
+            "collector_results": results["collector_results"],
+            "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
-    
+
     def _get_template(self) -> Template:
         template_str = """
 <!DOCTYPE html>
@@ -204,4 +207,6 @@ class HTMLReportGenerator:
 </html>
         """
         return Template(template_str)
+
+
 HTMLReporter = HTMLReportGenerator

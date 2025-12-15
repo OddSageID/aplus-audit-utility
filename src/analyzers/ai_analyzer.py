@@ -24,7 +24,7 @@ class AIAnalyzer:
             failure_threshold=5,
             success_threshold=2,
             timeout_seconds=60,
-            request_timeout_seconds=30
+            request_timeout_seconds=30,
         )
         self.rate_limiter = RateLimiter(rate_limit_config)
 
@@ -36,13 +36,17 @@ class AIAnalyzer:
         testing_env = os.getenv("PYTEST_CURRENT_TEST") is not None
         if api_key and provider == "anthropic":
             from anthropic import Anthropic
+
             base_client = Anthropic(api_key=api_key)
         elif api_key and provider == "openai":
             from openai import OpenAI
+
             base_client = OpenAI(api_key=api_key)
         else:
             # No key, unsupported provider, or running under tests: disable AI
-            self.logger.info("AI analysis disabled (missing API key, unsupported provider, or test environment)")
+            self.logger.info(
+                "AI analysis disabled (missing API key, unsupported provider, or test environment)"
+            )
 
         if testing_env and base_client is not None:
             if not getattr(base_client, "__module__", "").startswith("unittest.mock"):
@@ -87,33 +91,33 @@ class AIAnalyzer:
             finally:
                 new_loop.close()
         return asyncio.run(coro)
-    
+
     async def analyze_findings(self, audit_data: Dict, findings: List[Dict]) -> Dict[str, Any]:
         """
         Analyze findings and generate risk assessment with validation.
-        
+
         Args:
             audit_data: Complete audit data
             findings: List of findings to analyze
-            
+
         Returns:
             Validated analysis results
         """
         if not self.client:
             self.logger.info("AI analysis disabled, using fallback")
             return self._fallback_analysis(findings)
-        
+
         prompt = self._build_analysis_prompt(audit_data, findings)
-        
+
         try:
             start_time = time.perf_counter()
-            
+
             if self.config.provider == "anthropic":
                 response = await self.client.create_message(
                     model=self.config.model,
                     max_tokens=self.config.max_tokens,
                     temperature=self.config.temperature,
-                    messages=[{"role": "user", "content": prompt}]
+                    messages=[{"role": "user", "content": prompt}],
                 )
                 content = response.content[0].text
             else:
@@ -121,15 +125,15 @@ class AIAnalyzer:
                     model=self.config.model,
                     max_tokens=self.config.max_tokens,
                     temperature=self.config.temperature,
-                    messages=[{"role": "user", "content": prompt}]
+                    messages=[{"role": "user", "content": prompt}],
                 )
                 content = response.choices[0].message.content
-            
+
             # Track metrics
             self.total_api_calls += 1
             latency = (time.perf_counter() - start_time) * 1000
             self.total_latency_ms += latency
-            
+
             # Parse and validate response
             try:
                 response_data = json.loads(content)
@@ -139,26 +143,26 @@ class AIAnalyzer:
                 self.logger.error(f"Invalid AI response: {e}")
                 self.total_api_errors += 1
                 return self._fallback_analysis(findings)
-                
+
         except Exception as e:
             self.logger.error(f"AI analysis failed: {e}")
             self.total_api_errors += 1
             return self._fallback_analysis(findings)
-    
+
     async def generate_remediation_script(self, finding: Dict, platform: str) -> str:
         """
         Generate remediation script for a finding.
-        
+
         Args:
             finding: Finding dictionary
             platform: Target platform (Windows/Linux/Darwin)
-            
+
         Returns:
             Remediation script content
         """
         if not self.client:
             return self._fallback_remediation_script(finding, platform)
-        
+
         prompt = f"""Generate a safe remediation script for:
 Platform: {platform}
 Issue: {finding['description']}
@@ -180,7 +184,7 @@ Script:"""
                     model=self.config.model,
                     max_tokens=2048,
                     temperature=0.1,
-                    messages=[{"role": "user", "content": prompt}]
+                    messages=[{"role": "user", "content": prompt}],
                 )
                 script = response.content[0].text.strip()
             else:
@@ -188,28 +192,35 @@ Script:"""
                     model=self.config.model,
                     max_tokens=2048,
                     temperature=0.1,
-                    messages=[{"role": "user", "content": prompt}]
+                    messages=[{"role": "user", "content": prompt}],
                 )
                 script = response.choices[0].message.content.strip()
-            
+
             # Remove markdown code blocks if present
-            script = script.replace('```bash', '').replace('```powershell', '').replace('```', '').strip()
-            
+            script = (
+                script.replace("```bash", "")
+                .replace("```powershell", "")
+                .replace("```", "")
+                .strip()
+            )
+
             self.total_api_calls += 1
             return script
-            
+
         except Exception as e:
             self.logger.error(f"Remediation script generation failed: {e}")
             self.total_api_errors += 1
             return self._fallback_remediation_script(finding, platform)
-    
+
     def _build_analysis_prompt(self, audit_data: Dict, findings: List[Dict]) -> str:
         """Build prompt for AI analysis"""
-        findings_text = "\n".join([
-            f"- [{f['severity']}] {f['check_id']}: {f['description']}"
-            for f in findings[:50]  # Limit to prevent token overflow
-        ])
-        
+        findings_text = "\n".join(
+            [
+                f"- [{f['severity']}] {f['check_id']}: {f['description']}"
+                for f in findings[:50]  # Limit to prevent token overflow
+            ]
+        )
+
         return f"""Analyze this system security audit and provide a JSON response with the following structure:
 {{
     "risk_score": <integer 0-100>,
@@ -226,30 +237,39 @@ Findings ({len(findings)} total):
 {findings_text}
 
 Provide ONLY the JSON response, no additional text."""
-    
+
     def _fallback_analysis(self, findings: List[Dict]) -> Dict[str, Any]:
         """Fallback analysis when AI is unavailable"""
-        severity_weights = {'CRITICAL': 50, 'HIGH': 25, 'MEDIUM': 10, 'LOW': 5, 'INFO': 1}
-        risk_score = min(100, sum(severity_weights.get(f['severity'], 0) for f in findings))
-        
+        severity_weights = {
+            "CRITICAL": 50,
+            "HIGH": 25,
+            "MEDIUM": 10,
+            "LOW": 5,
+            "INFO": 1,
+        }
+        risk_score = min(100, sum(severity_weights.get(f["severity"], 0) for f in findings))
+
         critical_issues = [
             f"{f['check_id']}: {f['description']}"
-            for f in findings if f['severity'] in ('CRITICAL', 'HIGH')
-        ][:10]  # Limit to 10
-        
+            for f in findings
+            if f["severity"] in ("CRITICAL", "HIGH")
+        ][
+            :10
+        ]  # Limit to 10
+
         return {
-            'risk_score': risk_score,
-            'executive_summary': f"Audit identified {len(findings)} findings requiring attention. "
-                               f"{len(critical_issues)} critical issues detected.",
-            'critical_issues': critical_issues,
-            'recommendations': [
+            "risk_score": risk_score,
+            "executive_summary": f"Audit identified {len(findings)} findings requiring attention. "
+            f"{len(critical_issues)} critical issues detected.",
+            "critical_issues": critical_issues,
+            "recommendations": [
                 "Review and address critical findings immediately",
                 "Apply security patches and updates",
                 "Implement recommended security controls",
-                "Schedule regular security audits"
-            ]
+                "Schedule regular security audits",
+            ],
         }
-    
+
     def _fallback_remediation_script(self, finding: Dict, platform: str) -> str:
         """Fallback remediation script template"""
         if platform == "Windows":
@@ -258,7 +278,7 @@ Provide ONLY the JSON response, no additional text."""
         else:
             ext = "sh"
             shebang = "#!/bin/bash"
-        
+
         return f"""{shebang}
 # Remediation for: {finding['check_id']}
 # Issue: {finding['description']}
@@ -275,21 +295,19 @@ echo "WARNING: This script requires manual customization"
 echo "Issue: {finding['description']}"
 echo "Please refer to system documentation for proper remediation steps"
 """
-    
+
     def get_metrics(self) -> Dict[str, Any]:
         """Get AI analyzer metrics"""
         avg_latency = (
-            self.total_latency_ms / self.total_api_calls
-            if self.total_api_calls > 0 else 0
+            self.total_latency_ms / self.total_api_calls if self.total_api_calls > 0 else 0
         )
-        
+
         return {
-            'total_api_calls': self.total_api_calls,
-            'total_api_errors': self.total_api_errors,
-            'avg_latency_ms': round(avg_latency, 2),
-            'error_rate': (
-                self.total_api_errors / self.total_api_calls
-                if self.total_api_calls > 0 else 0
+            "total_api_calls": self.total_api_calls,
+            "total_api_errors": self.total_api_errors,
+            "avg_latency_ms": round(avg_latency, 2),
+            "error_rate": (
+                self.total_api_errors / self.total_api_calls if self.total_api_calls > 0 else 0
             ),
-            'rate_limiter_stats': self.rate_limiter.get_stats() if self.rate_limiter else {}
+            "rate_limiter_stats": (self.rate_limiter.get_stats() if self.rate_limiter else {}),
         }
