@@ -16,17 +16,52 @@ class HTMLReportGenerator:
         self.config.output_dir.mkdir(parents=True, exist_ok=True)
 
     def generate_report(self, audit_results: Dict[str, Any]) -> Path:
-        template = self._get_template()
-        context = self._prepare_context(audit_results)
-        html_content = template.render(**context)
+        """Generate HTML audit report with comprehensive error handling"""
+        try:
+            # Validate required fields in audit_results
+            required_fields = ['audit_id', 'all_findings']
+            for field in required_fields:
+                if field not in audit_results:
+                    raise ValueError(f"Missing required field '{field}' in audit_results")
 
-        output_file = self.config.output_dir / f"audit_{audit_results['audit_id']}.html"
-        output_file.parent.mkdir(parents=True, exist_ok=True)
+            template = self._get_template()
+            context = self._prepare_context(audit_results)
+            html_content = template.render(**context)
 
-        with open(output_file, "w", encoding="utf-8") as f:
-            f.write(html_content)
+            output_file = self.config.output_dir / f"audit_{audit_results['audit_id']}.html"
 
-        return output_file
+            # Ensure parent directory exists with proper error handling
+            try:
+                output_file.parent.mkdir(parents=True, exist_ok=True)
+            except PermissionError:
+                raise PermissionError(f"Permission denied creating directory: {output_file.parent}")
+            except OSError as e:
+                raise OSError(f"Failed to create output directory {output_file.parent}: {str(e)}")
+
+            # Write file with comprehensive error handling
+            try:
+                with open(output_file, "w", encoding="utf-8") as f:
+                    f.write(html_content)
+            except PermissionError:
+                raise PermissionError(f"Permission denied writing to: {output_file}")
+            except OSError as e:
+                if e.errno == 28:  # ENOSPC - No space left on device
+                    raise OSError(f"Disk full - cannot write report to: {output_file}")
+                raise OSError(f"Failed to write report file {output_file}: {str(e)}")
+            except UnicodeEncodeError as e:
+                raise UnicodeEncodeError(
+                    e.encoding, e.object, e.start, e.end,
+                    f"Cannot encode audit data to UTF-8: {e.reason}"
+                )
+
+            # Verify file was created successfully
+            if not output_file.exists():
+                raise RuntimeError(f"Report file was not created: {output_file}")
+
+            return output_file
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to generate audit report: {str(e)}") from e
 
     
     def _prepare_context(self, results: Dict[str, Any]) -> Dict:

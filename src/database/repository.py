@@ -70,19 +70,32 @@ class AuditRepository:
             Saved AuditRun object
         """
         session = self._get_session()
-        
+
         try:
-            # Calculate severity counts
+            # Validate required fields in audit_results
+            required_fields = ['audit_id', 'timestamp', 'platform', 'hostname']
+            for field in required_fields:
+                if field not in audit_results:
+                    raise ValueError(f"Missing required field '{field}' in audit_results")
+
+            # Calculate severity counts with safe access
             findings = audit_results.get('all_findings', [])
+            if not isinstance(findings, list):
+                raise ValueError(f"'all_findings' must be a list, got {type(findings)}")
+
             severity_counts = {
-                'critical': sum(1 for f in findings if f['severity'] == 'CRITICAL'),
-                'high': sum(1 for f in findings if f['severity'] == 'HIGH'),
-                'medium': sum(1 for f in findings if f['severity'] == 'MEDIUM'),
-                'low': sum(1 for f in findings if f['severity'] == 'LOW'),
+                'critical': sum(1 for f in findings if f.get('severity') == 'CRITICAL'),
+                'high': sum(1 for f in findings if f.get('severity') == 'HIGH'),
+                'medium': sum(1 for f in findings if f.get('severity') == 'MEDIUM'),
+                'low': sum(1 for f in findings if f.get('severity') == 'LOW'),
             }
-            
+
             # Determine risk level
             risk_score = audit_results.get('ai_analysis', {}).get('risk_score', 0)
+            if not isinstance(risk_score, (int, float)):
+                self.logger.warning(f"Invalid risk_score type: {type(risk_score)}, defaulting to 0")
+                risk_score = 0
+
             if risk_score >= 75:
                 risk_level = 'CRITICAL'
             elif risk_score >= 50:
@@ -91,11 +104,24 @@ class AuditRepository:
                 risk_level = 'MEDIUM'
             else:
                 risk_level = 'LOW'
-            
+
+            # Parse timestamp with proper error handling
+            try:
+                timestamp_str = audit_results['timestamp']
+                if isinstance(timestamp_str, str):
+                    timestamp_str = timestamp_str.replace('Z', '+00:00')
+                    timestamp = datetime.fromisoformat(timestamp_str)
+                elif isinstance(timestamp_str, datetime):
+                    timestamp = timestamp_str
+                else:
+                    raise ValueError(f"Invalid timestamp type: {type(timestamp_str)}")
+            except ValueError as e:
+                raise ValueError(f"Invalid timestamp format in audit_results: {e}") from e
+
             # Create audit run record
             audit_run = AuditRun(
                 audit_id=audit_results['audit_id'],
-                timestamp=datetime.fromisoformat(audit_results['timestamp'].replace('Z', '+00:00')),
+                timestamp=timestamp,
                 platform=audit_results['platform'],
                 hostname=audit_results['hostname'],
                 platform_version=audit_results.get('platform_version'),
@@ -121,40 +147,74 @@ class AuditRepository:
             
             session.add(audit_run)
             
-            # Save individual findings
-            for finding_data in findings:
-                finding = AuditFinding(
-                    audit_id=audit_results['audit_id'],
-                    check_id=finding_data['check_id'],
-                    severity=SeverityLevel(finding_data['severity']),
-                    description=finding_data['description'],
-                    current_value=str(finding_data.get('current_value', '')),
-                    expected_value=str(finding_data.get('expected_value', '')),
-                    remediation_hint=finding_data.get('remediation_hint'),
-                    collector_name=finding_data.get('collector_name')
-                )
-                session.add(finding)
-            
-            # Save remediation scripts
+            # Save individual findings with validation
+            for idx, finding_data in enumerate(findings):
+                try:
+                    # Validate required fields in finding
+                    required_finding_fields = ['check_id', 'severity', 'description']
+                    for field in required_finding_fields:
+                        if field not in finding_data:
+                            self.logger.warning(f"Finding {idx} missing field '{field}', skipping")
+                            continue
+
+                    # Validate severity value before creating enum
+                    try:
+                        severity = SeverityLevel(finding_data['severity'])
+                    except ValueError as e:
+                        self.logger.warning(f"Invalid severity '{finding_data.get('severity')}' in finding {idx}: {e}")
+                        continue
+
+                    finding = AuditFinding(
+                        audit_id=audit_results['audit_id'],
+                        check_id=finding_data['check_id'],
+                        severity=severity,
+                        description=finding_data['description'],
+                        current_value=str(finding_data.get('current_value', '')),
+                        expected_value=str(finding_data.get('expected_value', '')),
+                        remediation_hint=finding_data.get('remediation_hint'),
+                        collector_name=finding_data.get('collector_name')
+                    )
+                    session.add(finding)
+                except Exception as e:
+                    self.logger.error(f"Failed to save finding {idx}: {e}")
+                    # Continue with other findings
+
+            # Save remediation scripts with validation
             for script_id, script_data in audit_results.get('remediation_scripts', {}).items():
-                remediation = RemediationExecution(
-                    audit_id=audit_results['audit_id'],
-                    script_id=script_id,
-                    check_id=script_data.get('finding', {}).get('check_id', ''),
-                    script_filename=script_data.get('filename'),
-                    script_content=script_data.get('content'),
-                    approval_state=ApprovalState.PENDING
-                )
-                session.add(remediation)
-            
+                try:
+                    remediation = RemediationExecution(
+                        audit_id=audit_results['audit_id'],
+                        script_id=script_id,
+                        check_id=script_data.get('finding', {}).get('check_id', ''),
+                        script_filename=script_data.get('filename'),
+                        script_content=script_data.get('content'),
+                        approval_state=ApprovalState.PENDING
+                    )
+                    session.add(remediation)
+                except Exception as e:
+                    self.logger.error(f"Failed to save remediation script {script_id}: {e}")
+                    # Continue with other scripts
+
             session.commit()
             self.logger.info(f"Saved audit run: {audit_run.audit_id}")
             return audit_run
-            
+
+        except ValueError as e:
+            session.rollback()
+            self.logger.error(f"Validation error saving audit run: {e}")
+            raise
         except SQLAlchemyError as e:
             session.rollback()
-            self.logger.error(f"Failed to save audit run: {e}")
-            raise
+            error_msg = str(e)
+            if 'UNIQUE constraint failed' in error_msg or 'IntegrityError' in str(type(e)):
+                self.logger.error(f"Duplicate audit_id or integrity constraint violated: {e}")
+                raise ValueError(f"Audit with ID '{audit_results.get('audit_id')}' already exists") from e
+            elif 'OperationalError' in str(type(e)):
+                self.logger.error(f"Database connection error: {e}")
+                raise RuntimeError(f"Database connection failed: {e}") from e
+            else:
+                self.logger.error(f"Database error saving audit run: {e}")
+                raise
         finally:
             session.close()
     
@@ -275,24 +335,40 @@ class AuditRepository:
         state: ApprovalState,
         approved_by: Optional[str] = None
     ) -> bool:
-        """Update remediation approval state"""
+        """Update remediation approval state with input validation"""
+        # Validate inputs
+        if not isinstance(remediation_id, int) or remediation_id <= 0:
+            self.logger.error(f"Invalid remediation_id: {remediation_id}")
+            return False
+
+        # Validate that state is a valid ApprovalState enum value
+        if not isinstance(state, ApprovalState):
+            try:
+                state = ApprovalState(state)
+            except (ValueError, TypeError) as e:
+                self.logger.error(f"Invalid approval state '{state}': {e}")
+                return False
+
         session = self._get_session()
         try:
             remediation = session.query(RemediationExecution).filter(
                 RemediationExecution.id == remediation_id
             ).first()
-            
-            if remediation:
-                remediation.approval_state = state
-                remediation.approved_by = approved_by
-                remediation.approved_at = datetime.utcnow()
-                session.commit()
-                self.logger.info(f"Updated remediation {remediation_id} to {state}")
-                return True
-            return False
+
+            if not remediation:
+                self.logger.warning(f"Remediation {remediation_id} not found")
+                return False
+
+            remediation.approval_state = state
+            remediation.approved_by = approved_by
+            remediation.approved_at = datetime.utcnow()
+            session.commit()
+            self.logger.info(f"Updated remediation {remediation_id} to {state}")
+            return True
+
         except SQLAlchemyError as e:
             session.rollback()
-            self.logger.error(f"Failed to update remediation approval: {e}")
+            self.logger.error(f"Database error updating remediation approval: {e}")
             return False
         finally:
             session.close()

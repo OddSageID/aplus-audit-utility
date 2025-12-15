@@ -59,6 +59,46 @@ class AuditConfig:
     metrics_enabled: bool = True
     
     def __post_init__(self):
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        """Initialize configuration with proper error handling for directory creation"""
+        # Create output directory with comprehensive error handling
+        try:
+            self.output_dir.mkdir(parents=True, exist_ok=True)
+        except PermissionError:
+            raise PermissionError(
+                f"Permission denied creating output directory: {self.output_dir}. "
+                "Please check directory permissions or choose a different location."
+            )
+        except OSError as e:
+            if e.errno == 28:  # ENOSPC - No space left on device
+                raise OSError(
+                    f"Disk full - cannot create output directory: {self.output_dir}"
+                )
+            raise OSError(
+                f"Failed to create output directory {self.output_dir}: {str(e)}"
+            )
+        except Exception as e:
+            raise RuntimeError(
+                f"Unexpected error creating output directory {self.output_dir}: {str(e)}"
+            )
+
+        # Create log file directory if specified
         if self.log_file:
-            self.log_file.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                self.log_file.parent.mkdir(parents=True, exist_ok=True)
+            except PermissionError:
+                raise PermissionError(
+                    f"Permission denied creating log directory: {self.log_file.parent}. "
+                    "Please check directory permissions or choose a different location."
+                )
+            except OSError as e:
+                if e.errno == 28:  # ENOSPC
+                    raise OSError(
+                        f"Disk full - cannot create log directory: {self.log_file.parent}"
+                    )
+                raise OSError(
+                    f"Failed to create log directory {self.log_file.parent}: {str(e)}"
+                )
+            except Exception as e:
+                raise RuntimeError(
+                    f"Unexpected error creating log directory {self.log_file.parent}: {str(e)}"
+                )

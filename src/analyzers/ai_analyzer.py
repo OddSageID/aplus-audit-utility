@@ -75,6 +75,11 @@ class AIAnalyzer:
                     temperature=self.config.temperature,
                     messages=[{"role": "user", "content": prompt}]
                 )
+                # Validate response structure before accessing
+                if not hasattr(response, 'content') or not response.content:
+                    raise ValueError("Invalid response from Anthropic API: missing or empty content")
+                if len(response.content) == 0:
+                    raise ValueError("Invalid response from Anthropic API: content array is empty")
                 content = response.content[0].text
             else:
                 response = await self.client.create_completion(
@@ -83,6 +88,13 @@ class AIAnalyzer:
                     temperature=self.config.temperature,
                     messages=[{"role": "user", "content": prompt}]
                 )
+                # Validate response structure before accessing
+                if not hasattr(response, 'choices') or not response.choices:
+                    raise ValueError("Invalid response from OpenAI API: missing or empty choices")
+                if len(response.choices) == 0:
+                    raise ValueError("Invalid response from OpenAI API: choices array is empty")
+                if not hasattr(response.choices[0], 'message') or not hasattr(response.choices[0].message, 'content'):
+                    raise ValueError("Invalid response from OpenAI API: missing message content")
                 content = response.choices[0].message.content
             
             # Track metrics
@@ -92,11 +104,26 @@ class AIAnalyzer:
             
             # Parse and validate response
             try:
+                if not content or not content.strip():
+                    raise ValueError("AI returned empty content")
                 response_data = json.loads(content)
+
+                # Validate that response_data is a dictionary with required fields
+                if not isinstance(response_data, dict):
+                    raise ValueError(f"AI response is not a JSON object, got {type(response_data)}")
+
                 validated = validate_ai_response(response_data)
                 return validated.dict()
-            except (json.JSONDecodeError, ValidationError) as e:
-                self.logger.error(f"Invalid AI response: {e}")
+            except json.JSONDecodeError as e:
+                self.logger.error(f"Invalid JSON from AI: {e}. Content: {content[:200]}")
+                self.total_api_errors += 1
+                return self._fallback_analysis(findings)
+            except ValidationError as e:
+                self.logger.error(f"AI response validation failed: {e}")
+                self.total_api_errors += 1
+                return self._fallback_analysis(findings)
+            except ValueError as e:
+                self.logger.error(f"Invalid AI response structure: {e}")
                 self.total_api_errors += 1
                 return self._fallback_analysis(findings)
                 
@@ -142,6 +169,13 @@ Script:"""
                     temperature=0.1,
                     messages=[{"role": "user", "content": prompt}]
                 )
+                # Validate response structure before accessing
+                if not hasattr(response, 'content') or not response.content:
+                    raise ValueError("Invalid response from Anthropic API: missing or empty content")
+                if len(response.content) == 0:
+                    raise ValueError("Invalid response from Anthropic API: content array is empty")
+                if not hasattr(response.content[0], 'text'):
+                    raise ValueError("Invalid response from Anthropic API: content item missing text")
                 script = response.content[0].text.strip()
             else:
                 response = await self.client.create_completion(
@@ -150,14 +184,29 @@ Script:"""
                     temperature=0.1,
                     messages=[{"role": "user", "content": prompt}]
                 )
+                # Validate response structure before accessing
+                if not hasattr(response, 'choices') or not response.choices:
+                    raise ValueError("Invalid response from OpenAI API: missing or empty choices")
+                if len(response.choices) == 0:
+                    raise ValueError("Invalid response from OpenAI API: choices array is empty")
+                if not hasattr(response.choices[0], 'message') or not hasattr(response.choices[0].message, 'content'):
+                    raise ValueError("Invalid response from OpenAI API: missing message content")
                 script = response.choices[0].message.content.strip()
-            
+
+            # Validate that we got a non-empty script
+            if not script:
+                raise ValueError("AI returned empty remediation script")
+
             # Remove markdown code blocks if present
             script = script.replace('```bash', '').replace('```powershell', '').replace('```', '').strip()
-            
+
             self.total_api_calls += 1
             return script
-            
+
+        except ValueError as e:
+            self.logger.error(f"Invalid API response for remediation script: {e}")
+            self.total_api_errors += 1
+            return self._fallback_remediation_script(finding, platform)
         except Exception as e:
             self.logger.error(f"Remediation script generation failed: {e}")
             self.total_api_errors += 1

@@ -54,17 +54,33 @@ class OSConfigCollector(BaseCollector):
                     expected_value="Disabled",
                     remediation_hint="net user guest /active:no"
                 )
-        except:
-            result.warnings.append("Could not check user accounts")
+        except subprocess.TimeoutExpired:
+            result.warnings.append("Guest account check timed out after 10 seconds")
+        except FileNotFoundError:
+            result.warnings.append("PowerShell not found - unable to check user accounts")
+        except Exception as e:
+            result.warnings.append(f"Could not check user accounts: {str(e)}")
     
     def _check_linux_config(self, result: CollectorResult):
         """Linux configuration checks"""
         try:
-            with open('/etc/passwd', 'r') as f:
-                users = [line.split(':')[0] for line in f.readlines()]
+            with open('/etc/passwd', 'r', encoding='utf-8') as f:
+                users = []
+                for line in f.readlines():
+                    parts = line.split(':')
+                    if len(parts) > 0:
+                        users.append(parts[0])
                 result.data['users'] = {'count': len(users)}
-        except:
-            result.warnings.append("Could not read /etc/passwd")
+        except FileNotFoundError:
+            result.warnings.append("File /etc/passwd not found - unusual for a Linux system")
+        except PermissionError:
+            result.warnings.append("Permission denied reading /etc/passwd - run with elevated privileges")
+        except UnicodeDecodeError as e:
+            result.warnings.append(f"/etc/passwd encoding error: {str(e)}")
+        except IOError as e:
+            result.warnings.append(f"Error reading /etc/passwd: {str(e)}")
+        except Exception as e:
+            result.warnings.append(f"Could not read /etc/passwd: {str(e)}")
     
     def _check_macos_config(self, result: CollectorResult):
         """macOS configuration checks"""
@@ -74,5 +90,13 @@ class OSConfigCollector(BaseCollector):
             if output.returncode == 0:
                 users = output.stdout.strip().split('\n')
                 result.data['users'] = {'count': len(users)}
-        except:
-            result.warnings.append("Could not enumerate users")
+            else:
+                result.warnings.append(f"dscl command failed with exit code {output.returncode}")
+        except subprocess.TimeoutExpired:
+            result.warnings.append("User enumeration timed out after 10 seconds")
+        except FileNotFoundError:
+            result.warnings.append("dscl command not found - unusual for macOS")
+        except AttributeError as e:
+            result.warnings.append(f"Invalid output from dscl command: {str(e)}")
+        except Exception as e:
+            result.warnings.append(f"Could not enumerate users: {str(e)}")

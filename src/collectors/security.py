@@ -36,7 +36,7 @@ class SecurityCollector(BaseCollector):
         """Windows security checks"""
         # Check Windows Defender
         try:
-            cmd = ['powershell.exe', '-Command', 
+            cmd = ['powershell.exe', '-Command',
                    'Get-MpComputerStatus | Select-Object RealTimeProtectionEnabled | ConvertTo-Json']
             output = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
             if output.returncode == 0:
@@ -51,8 +51,14 @@ class SecurityCollector(BaseCollector):
                         expected_value="Enabled",
                         remediation_hint="Enable via Windows Security settings"
                     )
-        except:
-            result.warnings.append("Could not check Windows Defender status")
+        except subprocess.TimeoutExpired:
+            result.warnings.append("Windows Defender check timed out after 10 seconds")
+        except FileNotFoundError:
+            result.warnings.append("PowerShell not found - unable to check Windows Defender status")
+        except json.JSONDecodeError as e:
+            result.warnings.append(f"Invalid JSON from Windows Defender check: {str(e)}")
+        except Exception as e:
+            result.warnings.append(f"Could not check Windows Defender status: {str(e)}")
         
         # Check Firewall
         try:
@@ -74,8 +80,14 @@ class SecurityCollector(BaseCollector):
                             expected_value="Enabled",
                             remediation_hint=f"Enable {profile.get('Name')} firewall"
                         )
-        except:
-            result.warnings.append("Could not check Windows Firewall")
+        except subprocess.TimeoutExpired:
+            result.warnings.append("Windows Firewall check timed out after 10 seconds")
+        except FileNotFoundError:
+            result.warnings.append("PowerShell not found - unable to check Windows Firewall")
+        except json.JSONDecodeError as e:
+            result.warnings.append(f"Invalid JSON from Windows Firewall check: {str(e)}")
+        except Exception as e:
+            result.warnings.append(f"Could not check Windows Firewall: {str(e)}")
         
         # Check UAC
         try:
@@ -91,8 +103,12 @@ class SecurityCollector(BaseCollector):
                     expected_value="Enabled",
                     remediation_hint="Enable UAC via Local Security Policy"
                 )
-        except:
-            result.warnings.append("Could not check UAC status")
+        except subprocess.TimeoutExpired:
+            result.warnings.append("UAC check timed out after 10 seconds")
+        except FileNotFoundError:
+            result.warnings.append("PowerShell not found - unable to check UAC status")
+        except Exception as e:
+            result.warnings.append(f"Could not check UAC status: {str(e)}")
     
     def _check_linux_security(self, result: CollectorResult):
         """Linux security checks"""
@@ -108,12 +124,16 @@ class SecurityCollector(BaseCollector):
                     expected_value="active",
                     remediation_hint="Run: sudo ufw enable"
                 )
-        except:
-            result.warnings.append("Could not check firewall status")
-        
+        except subprocess.TimeoutExpired:
+            result.warnings.append("UFW firewall check timed out after 5 seconds")
+        except FileNotFoundError:
+            result.warnings.append("UFW firewall not installed or not in PATH")
+        except Exception as e:
+            result.warnings.append(f"Could not check firewall status: {str(e)}")
+
         # Check SSH config
         try:
-            with open('/etc/ssh/sshd_config', 'r') as f:
+            with open('/etc/ssh/sshd_config', 'r', encoding='utf-8') as f:
                 ssh_config = f.read()
                 if 'PermitRootLogin yes' in ssh_config:
                     result.add_finding(
@@ -124,8 +144,16 @@ class SecurityCollector(BaseCollector):
                         expected_value="PermitRootLogin no",
                         remediation_hint="Edit /etc/ssh/sshd_config"
                     )
-        except:
-            result.warnings.append("Could not check SSH config")
+        except FileNotFoundError:
+            result.warnings.append("SSH config file /etc/ssh/sshd_config not found")
+        except PermissionError:
+            result.warnings.append("Permission denied reading /etc/ssh/sshd_config - run with elevated privileges")
+        except UnicodeDecodeError as e:
+            result.warnings.append(f"SSH config file encoding error: {str(e)}")
+        except IOError as e:
+            result.warnings.append(f"Error reading SSH config file: {str(e)}")
+        except Exception as e:
+            result.warnings.append(f"Could not check SSH config: {str(e)}")
     
     def _check_macos_security(self, result: CollectorResult):
         """macOS security checks"""
@@ -142,5 +170,11 @@ class SecurityCollector(BaseCollector):
                     expected_value="Enabled",
                     remediation_hint="Enable via System Preferences"
                 )
-        except:
-            result.warnings.append("Could not check macOS firewall")
+        except subprocess.TimeoutExpired:
+            result.warnings.append("macOS firewall check timed out after 5 seconds")
+        except FileNotFoundError:
+            result.warnings.append("macOS firewall command not found")
+        except PermissionError:
+            result.warnings.append("Permission denied checking macOS firewall - run with elevated privileges")
+        except Exception as e:
+            result.warnings.append(f"Could not check macOS firewall: {str(e)}")
