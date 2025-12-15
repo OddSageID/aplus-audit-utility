@@ -16,7 +16,7 @@ class OSConfigCollector(BaseCollector):
     
     async def _collect(self) -> CollectorResult:
         result = CollectorResult(
-            collector_name=self.__class__.__name__,
+            collector_name=self.name,
             status=CollectorStatus.SUCCESS
         )
         
@@ -27,7 +27,7 @@ class OSConfigCollector(BaseCollector):
                 'version': platform.version(),
                 'hostname': platform.node()
             }
-            result.data['system'] = result.data['os_info']
+            result.data['system'] = platform.system()
             
             if self.platform == "Windows":
                 self._check_windows_config(result)

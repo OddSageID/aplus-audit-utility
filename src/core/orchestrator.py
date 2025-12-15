@@ -251,7 +251,7 @@ class AuditOrchestrator:
                     self.execution_metrics.errors.append(str(result))
                 continue
             
-            collector_name = collector.__class__.__name__
+            collector_name = getattr(collector, "name", collector.__class__.__name__)
             self.audit_results['collector_results'][collector_name] = {
                 'status': result.status.value,
                 'data': result.data,

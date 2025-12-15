@@ -79,10 +79,15 @@ class BaseCollector(ABC):
     def _run_coro(coro):
         try:
             running_loop = asyncio.get_running_loop()
-            if running_loop.is_running():
-                return asyncio.run(coro)
         except RuntimeError:
-            pass
+            running_loop = None
+
+        if running_loop and running_loop.is_running():
+            new_loop = asyncio.new_event_loop()
+            try:
+                return new_loop.run_until_complete(coro)
+            finally:
+                new_loop.close()
         return asyncio.run(coro)
     
     @abstractmethod
@@ -121,7 +126,7 @@ class BaseCollector(ABC):
         """
         start_time = time.time()
         result = CollectorResult(
-            collector_name=self.__class__.__name__,
+            collector_name=self.name,
             status=CollectorStatus.SKIPPED
         )
         

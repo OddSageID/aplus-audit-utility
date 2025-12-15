@@ -359,7 +359,7 @@ class RateLimitConfigSchema(BaseModel):
         per_hour = values.get('max_requests_per_hour')
         
         if per_minute and per_hour:
-            if per_minute * 60 < per_hour:
+            if per_hour < per_minute * 60:
                 raise ValueError(
                     "Hourly limit should be at least 60x the per-minute limit"
                 )

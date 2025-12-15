@@ -48,7 +48,7 @@ class RateLimiter:
         self._minute_requests: deque = deque()
         self._hour_requests: deque = deque()
         self._concurrent_count: int = 0
-        self._lock = asyncio.Lock()
+        self._lock = None
         
         # Circuit breaker state
         self._circuit_state = CircuitState.CLOSED
@@ -69,6 +69,9 @@ class RateLimiter:
         Returns:
             True if request allowed, False if rate limited
         """
+        if self._lock is None:
+            self._lock = asyncio.Lock()
+
         async with self._lock:
             now = datetime.utcnow()
             
@@ -119,6 +122,9 @@ class RateLimiter:
         Args:
             success: Whether the request succeeded
         """
+        if self._lock is None:
+            self._lock = asyncio.Lock()
+
         async with self._lock:
             self._concurrent_count = max(0, self._concurrent_count - 1)
             

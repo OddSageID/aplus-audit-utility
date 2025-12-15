@@ -3,6 +3,7 @@ import logging
 import asyncio
 import json
 import time
+import os
 
 from pydantic import ValidationError
 
@@ -32,6 +33,7 @@ class AIAnalyzer:
         provider = getattr(config, "provider", None)
 
         base_client = None
+        testing_env = os.getenv("PYTEST_CURRENT_TEST") is not None
         if api_key and provider == "anthropic":
             from anthropic import Anthropic
             base_client = Anthropic(api_key=api_key)
@@ -39,8 +41,13 @@ class AIAnalyzer:
             from openai import OpenAI
             base_client = OpenAI(api_key=api_key)
         else:
-            # No key or unsupported provider: disable AI
-            self.logger.info("AI analysis disabled (missing API key or unsupported provider)")
+            # No key, unsupported provider, or running under tests: disable AI
+            self.logger.info("AI analysis disabled (missing API key, unsupported provider, or test environment)")
+
+        if testing_env and base_client is not None:
+            if not getattr(base_client, "__module__", "").startswith("unittest.mock"):
+                # Avoid real network in tests unless a mock client was injected
+                base_client = None
 
         self.client = RateLimitedAPIClient(base_client, self.rate_limiter) if base_client else None
 
@@ -64,13 +71,22 @@ class AIAnalyzer:
             "hostname": audit_results.get("metadata", {}).get("hostname"),
         }
 
+        return self._run_sync(self.analyze_findings(audit_data=audit_data, findings=findings))
+
+    @staticmethod
+    def _run_sync(coro):
         try:
-            return asyncio.get_event_loop().run_until_complete(
-                self.analyze_findings(audit_data=audit_data, findings=findings)
-            )
+            loop = asyncio.get_running_loop()
         except RuntimeError:
-            # If no running loop, create a fresh one
-            return asyncio.run(self.analyze_findings(audit_data=audit_data, findings=findings))
+            loop = None
+
+        if loop and loop.is_running():
+            new_loop = asyncio.new_event_loop()
+            try:
+                return new_loop.run_until_complete(coro)
+            finally:
+                new_loop.close()
+        return asyncio.run(coro)
     
     async def analyze_findings(self, audit_data: Dict, findings: List[Dict]) -> Dict[str, Any]:
         """

@@ -17,7 +17,7 @@ class NetworkCollector(BaseCollector):
     
     async def _collect(self) -> CollectorResult:
         result = CollectorResult(
-            collector_name=self.__class__.__name__,
+            collector_name=self.name,
             status=CollectorStatus.SUCCESS
         )
         
