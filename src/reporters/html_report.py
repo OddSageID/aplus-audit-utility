@@ -15,6 +15,28 @@ class HTMLReportGenerator:
         self.config = config or ReporterConfig()
         self.config.output_dir.mkdir(parents=True, exist_ok=True)
 
+    def generate(self, audit_results: Dict[str, Any], output_path: str) -> Path:
+        """
+        Backwards-compatible wrapper expected by tests.
+        Writes report to the provided output path.
+        """
+        # Ensure all_findings exists for template rendering
+        if 'all_findings' not in audit_results:
+            findings = []
+            for collector in audit_results.get('collectors', {}).values():
+                findings.extend(collector.get('findings', []))
+            audit_results = {
+                **audit_results,
+                'all_findings': findings,
+                'collector_results': audit_results.get('collectors', {})
+            }
+
+        # Override output directory to the requested path
+        output_file = Path(output_path)
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        self.config.output_dir = output_file.parent
+        return self.generate_report(audit_results)
+
     def generate_report(self, audit_results: Dict[str, Any]) -> Path:
         template = self._get_template()
         context = self._prepare_context(audit_results)

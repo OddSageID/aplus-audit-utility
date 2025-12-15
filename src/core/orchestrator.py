@@ -70,7 +70,11 @@ class AuditOrchestrator:
         self.collectors.append(collector)
         self.logger.info(f"Registered: {collector.__class__.__name__}")
     
-    async def run_audit(self) -> Dict[str, Any]:
+    def run_audit(self) -> Dict[str, Any]:
+        """Synchronous wrapper for async audit execution (test-friendly)."""
+        return asyncio.run(self.run_audit_async())
+
+    async def run_audit_async(self) -> Dict[str, Any]:
         """
         Execute complete audit workflow:
         1. Run all collectors (parallel if configured)

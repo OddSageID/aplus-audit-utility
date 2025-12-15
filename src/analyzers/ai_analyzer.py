@@ -47,6 +47,29 @@ class AIAnalyzer:
         self.total_api_calls = 0
         self.total_api_errors = 0
         self.total_latency_ms = 0.0
+
+    def analyze(self, audit_results: Dict) -> Dict[str, Any]:
+        """
+        Backwards-compatible synchronous entry point expected by tests.
+        Aggregates findings from collectors and runs async analysis.
+        """
+        findings = []
+        collectors = audit_results.get("collectors", {})
+        for collector in collectors.values():
+            findings.extend(collector.get("findings", []))
+
+        audit_data = {
+            "platform": audit_results.get("metadata", {}).get("platform"),
+            "hostname": audit_results.get("metadata", {}).get("hostname"),
+        }
+
+        try:
+            return asyncio.get_event_loop().run_until_complete(
+                self.analyze_findings(audit_data=audit_data, findings=findings)
+            )
+        except RuntimeError:
+            # If no running loop, create a fresh one
+            return asyncio.run(self.analyze_findings(audit_data=audit_data, findings=findings))
     
     async def analyze_findings(self, audit_data: Dict, findings: List[Dict]) -> Dict[str, Any]:
         """

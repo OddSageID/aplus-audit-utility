@@ -321,11 +321,26 @@ class MetricsCollector:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.metrics_history: List[AuditMetrics] = []
+        self.custom_metrics: Dict[str, Any] = {}
     
-    def record(self, metrics: AuditMetrics):
-        """Record metrics for an audit run"""
-        self.metrics_history.append(metrics)
-        self.logger.info(f"Recorded metrics for audit {metrics.audit_id}")
+    def record(self, name_or_metrics, value: Any = None, metric_type: Any = None, tags: Optional[Dict[str, Any]] = None):
+        """
+        Record metrics for an audit run or custom metric value (test compatibility).
+        """
+        if isinstance(name_or_metrics, AuditMetrics):
+            metrics = name_or_metrics
+            self.metrics_history.append(metrics)
+            self.logger.info(f"Recorded metrics for audit {metrics.audit_id}")
+            return
+
+        # Custom metric path
+        name = name_or_metrics
+        if metric_type and not isinstance(metric_type, MetricType):
+            raise TypeError("metric_type must be MetricType")
+        if metric_type == MetricType.COUNTER:
+            self.custom_metrics[name] = self.custom_metrics.get(name, 0) + (value or 0)
+        else:
+            self.custom_metrics[name] = value
     
     def get_trends(self, hostname: Optional[str] = None, limit: int = 10) -> Dict[str, Any]:
         """
@@ -410,6 +425,13 @@ class MetricsCollector:
             return json.dumps(all_metrics, indent=2, default=str)
         else:
             raise ValueError(f"Unknown export format: {format}")
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Return simple stats for tests/monitoring."""
+        return {
+            'total_audits': len(self.metrics_history),
+            'custom_metrics': self.custom_metrics
+        }
     
     def get_summary_stats(self) -> Dict[str, Any]:
         """Get summary statistics across all recorded audits"""

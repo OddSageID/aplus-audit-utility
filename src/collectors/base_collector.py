@@ -2,11 +2,10 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+import logging
 import platform
 import time
 from typing import Any, Dict, List, Optional
-
-import logging
 
 class CollectorStatus(Enum):
     """Collector execution status"""
@@ -50,7 +49,11 @@ class BaseCollector(ABC):
     Implements Template Method pattern.
     """
     
-    def __init__(self, config: 'AuditConfig'):
+    def __init__(self, config: Optional['AuditConfig'] = None):
+        # Lazy import to avoid circular import at module load time
+        if config is None:
+            from src.core.config import AuditConfig  # type: ignore
+            config = AuditConfig()
         self.config = config
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         self.platform = platform.system()
