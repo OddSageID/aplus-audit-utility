@@ -239,7 +239,7 @@ class RemediationScriptSchema(BaseModel):
     
     content: Annotated[
         str,
-        StringConstraints(min_length=10, max_length=50000),
+        StringConstraints(min_length=1, max_length=50000),
         Field(description="Script content")
     ]
     

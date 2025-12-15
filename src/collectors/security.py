@@ -13,7 +13,7 @@ class SecurityCollector(BaseCollector):
     def supported_platforms(self) -> List[str]:
         return ["Windows", "Linux", "Darwin"]
     
-    async def collect(self) -> CollectorResult:
+    async def _collect(self) -> CollectorResult:
         result = CollectorResult(
             collector_name=self.__class__.__name__,
             status=CollectorStatus.SUCCESS

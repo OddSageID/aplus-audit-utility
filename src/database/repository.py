@@ -5,7 +5,7 @@ Provides clean abstraction over SQLAlchemy ORM.
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 from sqlalchemy import create_engine, func, desc
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker, Session, selectinload
 from sqlalchemy.exc import SQLAlchemyError
 import hashlib
 import json
@@ -36,7 +36,12 @@ class AuditRepository:
             pool_pre_ping=True,  # Verify connections before use
             pool_recycle=3600,   # Recycle connections after 1 hour
         )
-        self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
+        self.SessionLocal = sessionmaker(
+            autocommit=False,
+            autoflush=False,
+            expire_on_commit=False,
+            bind=self.engine
+        )
         
         # Create tables if they don't exist
         Base.metadata.create_all(bind=self.engine)
@@ -116,7 +121,18 @@ class AuditRepository:
                 ai_provider=audit_results.get('ai_config', {}).get('provider'),
                 ai_model=audit_results.get('ai_config', {}).get('model'),
                 raw_results=audit_results,
-                results_hash=self._generate_results_hash(audit_results)
+                results_hash=self._generate_results_hash(
+                    {
+                        "raw_results": audit_results,
+                        "risk_score": risk_score,
+                        "risk_level": risk_level,
+                        "total_findings": len(findings),
+                        "critical_count": severity_counts['critical'],
+                        "high_count": severity_counts['high'],
+                        "medium_count": severity_counts['medium'],
+                        "low_count": severity_counts['low'],
+                    }
+                )
             )
             
             session.add(audit_run)
@@ -162,7 +178,10 @@ class AuditRepository:
         """Retrieve specific audit run by ID"""
         session = self._get_session()
         try:
-            return session.query(AuditRun).filter(AuditRun.audit_id == audit_id).first()
+            return session.query(AuditRun).options(
+                selectinload(AuditRun.findings),
+                selectinload(AuditRun.remediations)
+            ).filter(AuditRun.audit_id == audit_id).first()
         finally:
             session.close()
     
@@ -176,7 +195,10 @@ class AuditRepository:
         """
         session = self._get_session()
         try:
-            query = session.query(AuditRun).order_by(desc(AuditRun.timestamp))
+            query = session.query(AuditRun).options(
+                selectinload(AuditRun.findings),
+                selectinload(AuditRun.remediations)
+            ).order_by(desc(AuditRun.timestamp))
             
             if hostname:
                 query = query.filter(AuditRun.hostname == hostname)
@@ -386,8 +408,17 @@ class AuditRepository:
             audit = session.query(AuditRun).filter(AuditRun.audit_id == audit_id).first()
             if not audit or not audit.raw_results:
                 return False
-            
-            current_hash = self._generate_results_hash(audit.raw_results)
+            payload = {
+                "raw_results": audit.raw_results,
+                "risk_score": audit.risk_score,
+                "risk_level": audit.risk_level,
+                "total_findings": audit.total_findings,
+                "critical_count": audit.critical_count,
+                "high_count": audit.high_count,
+                "medium_count": audit.medium_count,
+                "low_count": audit.low_count,
+            }
+            current_hash = self._generate_results_hash(payload)
             return current_hash == audit.results_hash
         finally:
             session.close()

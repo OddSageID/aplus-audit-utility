@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+import asyncio
 import logging
 import platform
 import time
@@ -48,6 +49,7 @@ class BaseCollector(ABC):
     Abstract base class for all system data collectors.
     Implements Template Method pattern.
     """
+    name: str
     
     def __init__(self, config: Optional['AuditConfig'] = None):
         # Lazy import to avoid circular import at module load time
@@ -57,14 +59,35 @@ class BaseCollector(ABC):
         self.config = config
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         self.platform = platform.system()
+        self.name = self.__class__.__name__
     
     @abstractmethod
-    async def collect(self) -> CollectorResult:
-        """
-        Collect system data and perform checks.
-        Must be implemented by subclasses.
-        """
-        pass
+    async def _collect(self) -> CollectorResult:
+        """Collect system data and perform checks (async implementation)."""
+        raise NotImplementedError
+
+    async def collect_async(self) -> CollectorResult:
+        """Async entrypoint (backwards compatible)."""
+        return await self._collect()
+
+    def collect(self) -> CollectorResult:
+        """Synchronous wrapper expected by tests."""
+        return self._run_coro(self._collect())
+
+    @staticmethod
+    def _run_coro(coro):
+        try:
+            running_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            running_loop = None
+
+        if running_loop and running_loop.is_running():
+            temp_loop = asyncio.new_event_loop()
+            try:
+                return temp_loop.run_until_complete(coro)
+            finally:
+                temp_loop.close()
+        return asyncio.run(coro)
     
     @abstractmethod
     def requires_admin(self) -> bool:
@@ -131,7 +154,7 @@ class BaseCollector(ABC):
         # Execute collection
         start_time = time.time()
         try:
-            result = await self.collect()
+            result = await self._collect()
             result.execution_time_ms = (time.time() - start_time) * 1000
         except Exception as e:
             self.logger.error(f"Collection failed: {str(e)}", exc_info=True)

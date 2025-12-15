@@ -37,12 +37,35 @@ class HTMLReportGenerator:
         self.config.output_dir = output_file.parent
         return self.generate_report(audit_results)
 
-    def generate_report(self, audit_results: Dict[str, Any]) -> Path:
+    def generate(self, audit_results: Dict[str, Any], output_file: Optional[str] = None) -> Path:
+        """
+        Backwards-compatible wrapper to generate HTML to a specific path.
+        """
+        if 'all_findings' not in audit_results:
+            findings = []
+            for collector in audit_results.get('collectors', {}).values():
+                findings.extend(collector.get('findings', []))
+            audit_results = {
+                **audit_results,
+                'all_findings': findings,
+                'collector_results': audit_results.get('collectors', {})
+            }
+
+        if output_file:
+            output_path = Path(output_file)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            self.config.output_dir = output_path.parent
+            return self.generate_report(audit_results, output_path.name)
+
+        return self.generate_report(audit_results)
+
+    def generate_report(self, audit_results: Dict[str, Any], filename: Optional[str] = None) -> Path:
         template = self._get_template()
         context = self._prepare_context(audit_results)
         html_content = template.render(**context)
 
-        output_file = self.config.output_dir / f"audit_{audit_results['audit_id']}.html"
+        output_name = filename or f"audit_{audit_results.get('audit_id', 'report')}.html"
+        output_file = self.config.output_dir / output_name
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
         with open(output_file, "w", encoding="utf-8") as f:
@@ -69,10 +92,10 @@ class HTMLReportGenerator:
             risk_level, risk_color = 'MEDIUM', '#ffc107'
         
         return {
-            'audit_id': results['audit_id'],
-            'timestamp': results['timestamp'],
-            'platform': results['platform'],
-            'hostname': results['hostname'],
+            'audit_id': results.get('audit_id', ''),
+            'timestamp': results.get('timestamp', ''),
+            'platform': results.get('platform', 'Unknown'),
+            'hostname': results.get('hostname', 'Unknown'),
             'risk_score': risk_score,
             'risk_level': risk_level,
             'risk_color': risk_color,
