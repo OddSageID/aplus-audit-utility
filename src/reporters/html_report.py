@@ -59,7 +59,7 @@ class HTMLReportGenerator:
         return output_file
 
     def _prepare_context(self, results: Dict[str, Any]) -> Dict:
-        severity_counts = {}
+        severity_counts: Dict[str, int] = {}
         for finding in results["all_findings"]:
             severity = finding["severity"]
             severity_counts[severity] = severity_counts.get(severity, 0) + 1

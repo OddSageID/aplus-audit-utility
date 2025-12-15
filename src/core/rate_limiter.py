@@ -52,7 +52,7 @@ class RateLimiter:
         self._minute_requests: deque = deque()
         self._hour_requests: deque = deque()
         self._concurrent_count: int = 0
-        self._lock = None
+        self._lock: Optional[asyncio.Lock] = None
 
         # Circuit breaker state
         self._circuit_state = CircuitState.CLOSED

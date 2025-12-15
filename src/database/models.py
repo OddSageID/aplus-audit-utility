@@ -16,13 +16,13 @@ from sqlalchemy import (
     Enum as SQLEnum,
     JSON,
 )
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import DeclarativeBase, relationship
 from datetime import datetime
 from enum import Enum
 
-Base = declarative_base()
+class Base(DeclarativeBase):
+    pass
 
 
 class SeverityLevel(str, Enum):
