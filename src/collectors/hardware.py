@@ -4,6 +4,12 @@ from typing import Any, Dict, List
 import cpuinfo
 import psutil
 
+# Compatibility: some platforms ship psutil without cpu_freq. Provide a stub.
+if not hasattr(psutil, "cpu_freq"):
+    def _cpu_freq_stub():
+        return None
+    psutil.cpu_freq = _cpu_freq_stub  # type: ignore[attr-defined]
+
 from .base_collector import BaseCollector, CollectorResult, CollectorStatus
 
 class HardwareCollector(BaseCollector):
