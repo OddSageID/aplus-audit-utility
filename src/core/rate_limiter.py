@@ -3,7 +3,7 @@ Rate limiting and circuit breaker for AI API calls.
 Prevents API abuse and handles transient failures gracefully.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Optional, Callable, Any
 from enum import Enum

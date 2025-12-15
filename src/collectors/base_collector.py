@@ -6,7 +6,10 @@ import asyncio
 import logging
 import platform
 import time
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
+if TYPE_CHECKING:
+    from src.core.config import AuditConfig
 
 
 class CollectorStatus(Enum):
@@ -127,7 +130,7 @@ class BaseCollector(ABC):
                 import ctypes
 
                 return ctypes.windll.shell32.IsUserAnAdmin() != 0
-            except:
+            except Exception:
                 return False
         else:
             return os.geteuid() == 0

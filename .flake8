@@ -1,0 +1,6 @@
+[flake8]
+max-line-length = 180
+extend-exclude = tests,setup_check.py
+per-file-ignores =
+    __init__.py:F401
+    src/reporters/html_report.py:W291,W293

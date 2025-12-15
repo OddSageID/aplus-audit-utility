@@ -273,7 +273,7 @@ class AuditRepository:
         """Get unresolved findings across all audits"""
         session = self._get_session()
         try:
-            query = session.query(AuditFinding).filter(AuditFinding.resolved == False)
+            query = session.query(AuditFinding).filter(AuditFinding.resolved.is_(False))
 
             if severity:
                 query = query.filter(AuditFinding.severity == severity)

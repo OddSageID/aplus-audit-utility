@@ -171,7 +171,7 @@ def main():
 
     collectors = get_collectors(config, args)
 
-    print(f"\n📋 Configuration:")
+    print("\n📋 Configuration:")
     print(f"   Collectors: {', '.join([c.__class__.__name__ for c in collectors])}")
     ai_enabled = config.ai.provider in {"anthropic", "openai"}
     print(f"   AI Analysis: {'Enabled' if ai_enabled else 'Disabled'}")

@@ -245,7 +245,7 @@ class AuditOrchestrator:
             process = psutil.Process()
             self.execution_metrics.memory_used_mb = process.memory_info().rss / (1024 * 1024)
             self.execution_metrics.cpu_percent = process.cpu_percent(interval=0.1)
-        except:
+        except Exception:
             pass
 
     async def _run_collectors(self):

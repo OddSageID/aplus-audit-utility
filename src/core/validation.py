@@ -5,10 +5,9 @@ Prevents injection attacks and ensures data integrity.
 UPDATED FOR PYDANTIC V2 COMPATIBILITY
 """
 
-from pathlib import Path
 from enum import Enum
 import re
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from typing_extensions import Annotated
 from pydantic import (

@@ -72,7 +72,7 @@ jobs:
     
     - name: Lint with flake8
       run: |
-        flake8 src/ tests/ main.py setup_check.py --max-line-length=100 --statistics
+        flake8 --config .flake8 src main.py --statistics
     
     - name: Type checking with mypy
       run: |

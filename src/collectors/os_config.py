@@ -62,7 +62,7 @@ class OSConfigCollector(BaseCollector):
                     expected_value="Disabled",
                     remediation_hint="net user guest /active:no",
                 )
-        except:
+        except Exception:
             result.warnings.append("Could not check user accounts")
 
     def _check_linux_config(self, result: CollectorResult):
@@ -71,7 +71,7 @@ class OSConfigCollector(BaseCollector):
             with open("/etc/passwd", "r") as f:
                 users = [line.split(":")[0] for line in f.readlines()]
                 result.data["users"] = {"count": len(users)}
-        except:
+        except Exception:
             result.warnings.append("Could not read /etc/passwd")
 
     def _check_macos_config(self, result: CollectorResult):
@@ -82,5 +82,5 @@ class OSConfigCollector(BaseCollector):
             if output.returncode == 0:
                 users = output.stdout.strip().split("\n")
                 result.data["users"] = {"count": len(users)}
-        except:
+        except Exception:
             result.warnings.append("Could not enumerate users")

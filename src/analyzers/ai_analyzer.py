@@ -273,16 +273,14 @@ Provide ONLY the JSON response, no additional text."""
     def _fallback_remediation_script(self, finding: Dict, platform: str) -> str:
         """Fallback remediation script template"""
         if platform == "Windows":
-            ext = "ps1"
             shebang = "# PowerShell Remediation Script"
         else:
-            ext = "sh"
             shebang = "#!/bin/bash"
 
         return f"""{shebang}
 # Remediation for: {finding['check_id']}
 # Issue: {finding['description']}
-# 
+#
 # Current State: {finding['current_value']}
 # Expected State: {finding['expected_value']}
 #

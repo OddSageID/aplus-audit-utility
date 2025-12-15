@@ -1,4 +1,3 @@
-import platform
 import subprocess
 from typing import List
 
@@ -55,7 +54,7 @@ class SecurityCollector(BaseCollector):
                         expected_value="Enabled",
                         remediation_hint="Enable via Windows Security settings",
                     )
-        except:
+        except Exception:
             result.warnings.append("Could not check Windows Defender status")
 
         # Check Firewall
@@ -82,7 +81,7 @@ class SecurityCollector(BaseCollector):
                             expected_value="Enabled",
                             remediation_hint=f"Enable {profile.get('Name')} firewall",
                         )
-        except:
+        except Exception:
             result.warnings.append("Could not check Windows Firewall")
 
         # Check UAC
@@ -102,7 +101,7 @@ class SecurityCollector(BaseCollector):
                     expected_value="Enabled",
                     remediation_hint="Enable UAC via Local Security Policy",
                 )
-        except:
+        except Exception:
             result.warnings.append("Could not check UAC status")
 
     def _check_linux_security(self, result: CollectorResult):
@@ -121,7 +120,7 @@ class SecurityCollector(BaseCollector):
                     expected_value="active",
                     remediation_hint="Run: sudo ufw enable",
                 )
-        except:
+        except Exception:
             result.warnings.append("Could not check firewall status")
 
         # Check SSH config
@@ -137,7 +136,7 @@ class SecurityCollector(BaseCollector):
                         expected_value="PermitRootLogin no",
                         remediation_hint="Edit /etc/ssh/sshd_config",
                     )
-        except:
+        except Exception:
             result.warnings.append("Could not check SSH config")
 
     def _check_macos_security(self, result: CollectorResult):
@@ -158,5 +157,5 @@ class SecurityCollector(BaseCollector):
                     expected_value="Enabled",
                     remediation_hint="Enable via System Preferences",
                 )
-        except:
+        except Exception:
             result.warnings.append("Could not check macOS firewall")

@@ -193,7 +193,6 @@ class AuditMetrics:
         Returns:
             List of metric data dictionaries for CloudWatch PutMetricData API
         """
-        namespace = "AuditUtility"
         dimensions = [
             {"Name": "Hostname", "Value": self.hostname},
             {"Name": "Platform", "Value": self.platform},
