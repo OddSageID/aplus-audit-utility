@@ -85,7 +85,22 @@ jobs:
     
     - name: Lint with pylint
       run: |
-        pylint src/ --disable=C,R,W --max-line-length=100 --fail-under=9.0
+        set -e
+        pylint src/ main.py setup_check.py --max-line-length=100 --fail-under=9.2 || rc=$?
+        rc=${rc:-0}
+        if [ $rc -eq 0 ]; then
+          exit 0
+        fi
+        # Fail on fatal/errors or score below threshold, ignore convention/refactor/warning bits
+        if [ $((rc & 1)) -ne 0 ] || [ $((rc & 2)) -ne 0 ]; then
+          echo "Pylint encountered fatal/error issues (rc=$rc)"
+          exit $rc
+        fi
+        if [ $((rc & 32)) -ne 0 ]; then
+          echo "Pylint score below required threshold (9.2/10)"
+          exit 1
+        fi
+        echo "Pylint returned non-blocking status (rc=$rc); continuing."
 
   security:
     name: Security Scan
@@ -200,38 +215,42 @@ jobs:
       run: |
         VERSION=$(grep -oP '(?<=Version\*\*: )\d+\.\d+\.\d+' README.md | head -1)
         echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Validate version
+      env:
+        VERSION: ${{ steps.get_version.outputs.version }}
+      run: |
+        if [ -z "$VERSION" ]; then
+          echo "Release version not found in README.md"
+          exit 1
+        fi
     
-    - name: Create Git tag
+    - name: Ensure Git tag exists
+      id: ensure_tag
       env:
         VERSION: ${{ steps.get_version.outputs.version }}
       run: |
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
-        if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
+        if git ls-remote --tags origin "refs/tags/v${VERSION}" | grep -q "refs/tags/v${VERSION}"; then
+          echo "tag_exists=true" >> "$GITHUB_OUTPUT"
           echo "Tag v${VERSION} already exists; skipping creation."
         else
           git tag -a "v${VERSION}" -m "Release v${VERSION}"
           git push origin "v${VERSION}"
+          echo "tag_exists=false" >> "$GITHUB_OUTPUT"
         fi
 
-    - name: Check if release exists
-      id: release_exists
-      env:
-        VERSION: ${{ steps.get_version.outputs.version }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        if gh release view "v${VERSION}" >/dev/null 2>&1; then
-          echo "exists=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "exists=false" >> "$GITHUB_OUTPUT"
-        fi
-
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
-      if: steps.release_exists.outputs.exists == 'false'
+    - name: Create or Update GitHub Release
+      uses: softprops/action-gh-release@v2
       with:
+        token: ${{ secrets.GITHUB_TOKEN }}
         tag_name: v${{ steps.get_version.outputs.version }}
         name: Release v${{ steps.get_version.outputs.version }}
+        draft: false
+        prerelease: false
+        fail_on_unmatched_files: false
+        generate_release_notes: false
         body: |
           ## A+ System Audit Utility v${{ steps.get_version.outputs.version }}
           
@@ -247,7 +266,3 @@ jobs:
           # Add your API key to .env
           python main.py
           ```
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

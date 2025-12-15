@@ -60,22 +60,49 @@ class AIAnalyzer:
         self.total_api_errors = 0
         self.total_latency_ms = 0.0
 
+    def _normalize_audit_results(self, audit_results: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Normalize audit results from multiple schema versions.
+
+        Supports:
+        - New orchestrator output: top-level platform/hostname + collector_results
+        - Legacy output: metadata.platform / metadata.hostname + collectors
+        """
+        # Prefer already aggregated findings when present
+        all_findings = audit_results.get("all_findings", [])
+        if not all_findings:
+            collectors = (
+                audit_results.get("collector_results")
+                or audit_results.get("collectors")
+                or {}
+            )
+            for collector in collectors.values():
+                if isinstance(collector, dict):
+                    all_findings.extend(collector.get("findings", []))
+
+        metadata = audit_results.get("metadata", {}) or {}
+        platform_val = audit_results.get("platform") or metadata.get("platform")
+        hostname_val = audit_results.get("hostname") or metadata.get("hostname")
+
+        return {
+            "findings": all_findings,
+            "audit_data": {
+                "platform": platform_val,
+                "hostname": hostname_val,
+            },
+        }
+
     def analyze(self, audit_results: Dict) -> Dict[str, Any]:
         """
         Backwards-compatible synchronous entry point expected by tests.
         Aggregates findings from collectors and runs async analysis.
         """
-        findings = []
-        collectors = audit_results.get("collectors", {})
-        for collector in collectors.values():
-            findings.extend(collector.get("findings", []))
-
-        audit_data = {
-            "platform": audit_results.get("metadata", {}).get("platform"),
-            "hostname": audit_results.get("metadata", {}).get("hostname"),
-        }
-
-        return self._run_sync(self.analyze_findings(audit_data=audit_data, findings=findings))
+        normalized = self._normalize_audit_results(audit_results)
+        return self._run_sync(
+            self.analyze_findings(
+                audit_data=normalized["audit_data"], findings=normalized["findings"]
+            )
+        )
 
     @staticmethod
     def _run_sync(coro):

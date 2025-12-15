@@ -7,35 +7,54 @@ Author: Kevin (FLCC Cybersecurity & Networking)
 Course: Technical Support Fundamentals - Final Project
 """
 
-import asyncio
-import sys
 import argparse
-from pathlib import Path
-from datetime import datetime
+import asyncio
 import json
+import sys
+from datetime import datetime
+from pathlib import Path
 
+from src.collectors import HardwareCollector, NetworkCollector, OSConfigCollector, SecurityCollector
 from src.core.config import AIConfig, AuditConfig
 from src.core.orchestrator import AuditOrchestrator
-from src.collectors import (
-    HardwareCollector,
-    SecurityCollector,
-    OSConfigCollector,
-    NetworkCollector,
-)
+from src.core.validation import validate_cli_args
 from src.reporters.html_report import HTMLReportGenerator
 
 
-def print_banner():
-    banner = """
-╔══════════════════════════════════════════════════════════════╗
+def _supports_unicode() -> bool:
+    """Return True if stdout encoding can render common Unicode characters."""
+    encoding = sys.stdout.encoding
+    if not encoding:
+        return False
+    try:
+        "✓".encode(encoding)
+        "•".encode(encoding)
+    except Exception:
+        return False
+    return True
+
+
+def print_banner(use_ascii: bool = False):
+    if use_ascii:
+        banner = r"""
+======================================================================
+|                    A+ SYSTEM AUDIT UTILITY v1.0                     |
+|              AI-Assisted Security & Configuration Analysis          |
+|                                                                     |
+|           Implements CIS Benchmarks Level 1 + A+ Best Practices     |
+======================================================================
+"""
+    else:
+        banner = """
+╔══════════════════════════════════════════════════════════════════════╗
 ║                                                              ║
 ║           A+ SYSTEM AUDIT UTILITY v1.0                       ║
 ║     AI-Assisted Security & Configuration Analysis            ║
 ║                                                              ║
 ║  Implements CIS Benchmarks Level 1 + A+ Best Practices       ║
 ║                                                              ║
-╚══════════════════════════════════════════════════════════════╝
-    """
+╚══════════════════════════════════════════════════════════════════════╝
+"""
     print(banner)
 
 
@@ -58,6 +77,7 @@ def parse_arguments():
     parser.add_argument("--output", "-o", type=Path, default=Path("./audit_results"))
     parser.add_argument("--formats", nargs="+", choices=["html", "json", "all"], default=["all"])
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose logging")
+    parser.add_argument("--ascii", action="store_true", help="Use ASCII-only console output")
     parser.add_argument("--version", action="version", version="A+ System Audit Utility v1.0")
 
     return parser.parse_args()
@@ -85,6 +105,30 @@ def build_config(args):
     )
 
 
+def validate_and_normalize_args(args):
+    """Validate CLI arguments and sync normalized values onto the namespace."""
+    validated = validate_cli_args(
+        {
+            "quick": args.quick,
+            "no_admin": args.no_admin,
+            "no_remediation": args.no_remediation,
+            "verbose": args.verbose,
+            "ai": args.ai,
+            "collectors": args.collectors,
+            "formats": args.formats,
+            "model": args.model,
+            "output": str(args.output),
+        }
+    )
+
+    args.output = Path(validated.output)
+    args.collectors = list(validated.collectors)
+    args.formats = list(validated.formats)
+    args.model = validated.model
+    args.ai = validated.ai
+    return args
+
+
 def get_collectors(config, args):
     collector_map = {
         "hardware": HardwareCollector,
@@ -101,15 +145,19 @@ def get_collectors(config, args):
     return [collector_map[name](config) for name in selected]
 
 
-async def run_audit(config, collectors):
+async def run_audit(config, collectors, unicode_ok: bool = True):
     orchestrator = AuditOrchestrator(config)
 
-    print("• Registering collectors...")
+    bullet = "•" if unicode_ok else "-"
+    check_mark = "✓" if unicode_ok else "[OK]"
+    start_icon = "▶" if unicode_ok else ">>"
+
+    print(f"{bullet} Registering collectors...")
     for collector in collectors:
         orchestrator.register_collector(collector)
-        print(f"  ✓ {collector.__class__.__name__}")
+        print(f"  {check_mark} {collector.__class__.__name__}")
 
-    print("▶ Starting system audit...")
+    print(f"{start_icon} Starting system audit...")
     results = await orchestrator.run_audit()
     return results
 
@@ -161,41 +209,52 @@ def save_results(results, config):
 
 def main():
     args = parse_arguments()
-    print_banner()
+    unicode_ok = _supports_unicode() and not args.ascii
+    print_banner(use_ascii=not unicode_ok)
 
     try:
-        config = build_config(args)
-    except ValueError as e:
-        print(f"\n❌ Configuration error: {e}")
+        validated_args = validate_and_normalize_args(args)
+        config = build_config(validated_args)
+    except Exception as e:
+        prefix = "[CONFIG ERROR]" if not unicode_ok else "❌ Configuration error:"
+        print(f"\n{prefix} {e}")
         sys.exit(1)
 
     collectors = get_collectors(config, args)
 
-    print("\n📋 Configuration:")
+    prefix_config = "CONFIGURATION" if not unicode_ok else "🗋 Configuration:"
+    start_icon = ">>" if not unicode_ok else "🚀"
+    save_icon = "[SAVE]" if not unicode_ok else "📁"
+    complete_icon = "[DONE]" if not unicode_ok else "✓"
+    output_icon = "[OUTPUT]" if not unicode_ok else "📄"
+
+    print(f"\n{prefix_config}")
     print(f"   Collectors: {', '.join([c.__class__.__name__ for c in collectors])}")
     ai_enabled = config.ai.provider in {"anthropic", "openai"}
     print(f"   AI Analysis: {'Enabled' if ai_enabled else 'Disabled'}")
 
     try:
-        print(f"\n🚀 Starting audit at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-        results = asyncio.run(run_audit(config, collectors))
+        print(f"\n{start_icon} Starting audit at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        results = asyncio.run(run_audit(config, collectors, unicode_ok=unicode_ok))
         print_summary(results)
 
-        print("\n📁 Saving results...")
+        print(f"\n{save_icon} Saving results...")
         output_files = save_results(results, config)
 
-        print("\n✓ Audit complete!")
-        print("\n📄 Output files:")
+        print(f"\n{complete_icon} Audit complete!")
+        print(f"\n{output_icon} Output files:")
         for name, path in output_files:
             print(f"   {name}: {path}")
 
         sys.exit(0)
 
     except KeyboardInterrupt:
-        print("\n\n⚠️  Audit interrupted by user")
+        warn_icon = "[INTERRUPTED]" if not unicode_ok else "⚠️  Audit interrupted by user"
+        print(f"\n\n{warn_icon}")
         sys.exit(130)
     except Exception as e:
-        print(f"\n\n❌ Audit failed: {str(e)}")
+        fail_icon = "[ERROR]" if not unicode_ok else "❌ Audit failed:"
+        print(f"\n\n{fail_icon} {str(e)}")
         if args.verbose:
             import traceback
 
