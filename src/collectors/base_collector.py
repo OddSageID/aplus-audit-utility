@@ -50,6 +50,7 @@ class BaseCollector(ABC):
     Implements Template Method pattern.
     """
     name: str
+    COLLECTOR_NAME: str = ""
     
     def __init__(self, config: Optional['AuditConfig'] = None):
         # Lazy import to avoid circular import at module load time
@@ -59,7 +60,7 @@ class BaseCollector(ABC):
         self.config = config
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         self.platform = platform.system()
-        self.name = self.__class__.__name__
+        self.name = self.COLLECTOR_NAME or self.__class__.__name__
     
     @abstractmethod
     async def _collect(self) -> CollectorResult:
@@ -78,15 +79,10 @@ class BaseCollector(ABC):
     def _run_coro(coro):
         try:
             running_loop = asyncio.get_running_loop()
+            if running_loop.is_running():
+                return asyncio.run(coro)
         except RuntimeError:
-            running_loop = None
-
-        if running_loop and running_loop.is_running():
-            temp_loop = asyncio.new_event_loop()
-            try:
-                return temp_loop.run_until_complete(coro)
-            finally:
-                temp_loop.close()
+            pass
         return asyncio.run(coro)
     
     @abstractmethod
@@ -133,7 +129,7 @@ class BaseCollector(ABC):
         if not self.is_supported():
             msg = f"Platform {self.platform} not supported"
             result.warnings.append(msg)
-            result.execution_time_ms = (time.time() - start_time) * 1000
+            result.execution_time_ms = (time.time() - start_time) * 1000.0
             return result
         
         # Permission check (graceful degradation)
@@ -142,23 +138,27 @@ class BaseCollector(ABC):
                 msg = "Requires admin/root privileges (run with sudo/admin)"
                 result.errors.append(msg)
                 result.status = CollectorStatus.FAILED
-                result.execution_time_ms = (time.time() - start_time) * 1000
+                result.execution_time_ms = (time.time() - start_time) * 1000.0
                 return result
 
             msg = "Insufficient privileges; skipping checks for this collector"
             result.warnings.append(msg)
             result.status = CollectorStatus.SKIPPED
-            result.execution_time_ms = (time.time() - start_time) * 1000
+            result.execution_time_ms = (time.time() - start_time) * 1000.0
             return result
-        
+
         # Execute collection
         start_time = time.time()
         try:
             result = await self._collect()
-            result.execution_time_ms = (time.time() - start_time) * 1000
+            result.execution_time_ms = (time.time() - start_time) * 1000.0
         except Exception as e:
             self.logger.error(f"Collection failed: {str(e)}", exc_info=True)
             result.errors.append(str(e))
             result.status = CollectorStatus.FAILED
-        
+            result.execution_time_ms = (time.time() - start_time) * 1000.0
+        finally:
+            if result.execution_time_ms is None:
+                result.execution_time_ms = (time.time() - start_time) * 1000.0
+
         return result

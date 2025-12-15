@@ -2,6 +2,7 @@ from typing import Dict, Any, List
 import logging
 import asyncio
 import json
+import time
 
 from pydantic import ValidationError
 
@@ -89,7 +90,7 @@ class AIAnalyzer:
         prompt = self._build_analysis_prompt(audit_data, findings)
         
         try:
-            start_time = asyncio.get_event_loop().time()
+            start_time = time.perf_counter()
             
             if self.config.provider == "anthropic":
                 response = await self.client.create_message(
@@ -110,7 +111,7 @@ class AIAnalyzer:
             
             # Track metrics
             self.total_api_calls += 1
-            latency = (asyncio.get_event_loop().time() - start_time) * 1000
+            latency = (time.perf_counter() - start_time) * 1000
             self.total_latency_ms += latency
             
             # Parse and validate response

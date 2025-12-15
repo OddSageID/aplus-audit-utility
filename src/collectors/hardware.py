@@ -8,6 +8,7 @@ from .base_collector import BaseCollector, CollectorResult, CollectorStatus
 
 class HardwareCollector(BaseCollector):
     """Collects hardware inventory and configuration"""
+    COLLECTOR_NAME = "hardware"
     
     def requires_admin(self) -> bool:
         return False

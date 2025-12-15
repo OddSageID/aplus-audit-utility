@@ -6,6 +6,7 @@ from .base_collector import BaseCollector, CollectorResult, CollectorStatus
 
 class OSConfigCollector(BaseCollector):
     """OS configuration checks - users, services, startup"""
+    COLLECTOR_NAME = "os_config"
     
     def requires_admin(self) -> bool:
         return True
@@ -26,6 +27,7 @@ class OSConfigCollector(BaseCollector):
                 'version': platform.version(),
                 'hostname': platform.node()
             }
+            result.data['system'] = result.data['os_info']
             
             if self.platform == "Windows":
                 self._check_windows_config(result)

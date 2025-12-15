@@ -6,6 +6,7 @@ from .base_collector import BaseCollector, CollectorResult, CollectorStatus
 
 class SecurityCollector(BaseCollector):
     """Security posture checks - CIS Level 1 + A+ best practices"""
+    COLLECTOR_NAME = "security"
     
     def requires_admin(self) -> bool:
         return True

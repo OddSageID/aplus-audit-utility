@@ -7,6 +7,7 @@ from .base_collector import BaseCollector, CollectorResult, CollectorStatus
 
 class NetworkCollector(BaseCollector):
     """Network configuration and connectivity checks"""
+    COLLECTOR_NAME = "network"
     
     def requires_admin(self) -> bool:
         return False
