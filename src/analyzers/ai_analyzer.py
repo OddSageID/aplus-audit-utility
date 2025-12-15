@@ -1,25 +1,19 @@
-from typing import Dict, Any, List, Optional
-import json
-import asyncio
+from typing import Dict, Any, List
 import logging
-from anthropic import Anthropic
-from openai import OpenAI
+import asyncio
+import json
+
 from pydantic import ValidationError
 
 from ..core.rate_limiter import RateLimiter, RateLimitedAPIClient, RateLimitConfig
-from ..core.validation import validate_ai_response, AIAnalysisResponseSchema
+from ..core.validation import validate_ai_response
 
 
 class AIAnalyzer:
-    """
-    AI-powered analysis using Claude or GPT.
-    Includes rate limiting, circuit breaker, and response validation.
-    """
-    
     def __init__(self, config):
         self.config = config
         self.logger = logging.getLogger(__name__)
-        
+
         # Initialize rate limiter
         rate_limit_config = RateLimitConfig(
             max_requests_per_minute=config.max_requests_per_minute,
@@ -31,17 +25,24 @@ class AIAnalyzer:
             request_timeout_seconds=30
         )
         self.rate_limiter = RateLimiter(rate_limit_config)
-        
-        # Initialize API client
-        if config.provider == "anthropic":
-            base_client = Anthropic(api_key=config.api_key)
-        elif config.provider == "openai":
-            base_client = OpenAI(api_key=config.api_key)
+
+        # Initialize API client (SAFE: no key => no client => fallback)
+        api_key = getattr(config, "api_key", None)
+        provider = getattr(config, "provider", None)
+
+        base_client = None
+        if api_key and provider == "anthropic":
+            from anthropic import Anthropic
+            base_client = Anthropic(api_key=api_key)
+        elif api_key and provider == "openai":
+            from openai import OpenAI
+            base_client = OpenAI(api_key=api_key)
         else:
-            base_client = None
-        
+            # No key or unsupported provider: disable AI
+            self.logger.info("AI analysis disabled (missing API key or unsupported provider)")
+
         self.client = RateLimitedAPIClient(base_client, self.rate_limiter) if base_client else None
-        
+
         # Metrics tracking
         self.total_api_calls = 0
         self.total_api_errors = 0
