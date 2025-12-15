@@ -12,7 +12,7 @@ import sys
 import subprocess
 import os
 from pathlib import Path
-from typing import Tuple, List, Dict, Any
+from typing import Tuple, List, Dict, Any, Optional
 import argparse
 import json
 
@@ -309,7 +309,7 @@ def run_checks(output_format: str = "pretty") -> Dict[str, Any]:
     return results
 
 
-def main(argv: List[str] | None = None) -> int:
+def main(argv: Optional[List[str]] = None) -> int:
     """CLI entrypoint for the setup checker."""
     parser = argparse.ArgumentParser(description="A+ audit setup validation")
     parser.add_argument("--format", choices=["pretty", "json"], default="pretty",
