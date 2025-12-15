@@ -229,12 +229,12 @@ Provide ONLY the JSON response, no additional text."""
     
     def _fallback_analysis(self, findings: List[Dict]) -> Dict[str, Any]:
         """Fallback analysis when AI is unavailable"""
-        severity_weights = {'CRITICAL': 25, 'HIGH': 15, 'MEDIUM': 8, 'LOW': 3, 'INFO': 1}
+        severity_weights = {'CRITICAL': 50, 'HIGH': 25, 'MEDIUM': 10, 'LOW': 5, 'INFO': 1}
         risk_score = min(100, sum(severity_weights.get(f['severity'], 0) for f in findings))
         
         critical_issues = [
             f"{f['check_id']}: {f['description']}"
-            for f in findings if f['severity'] == 'CRITICAL'
+            for f in findings if f['severity'] in ('CRITICAL', 'HIGH')
         ][:10]  # Limit to 10
         
         return {

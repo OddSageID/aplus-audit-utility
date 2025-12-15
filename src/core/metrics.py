@@ -321,7 +321,8 @@ class MetricsCollector:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.metrics_history: List[AuditMetrics] = []
-        self.custom_metrics: Dict[str, Any] = {}
+        self.metric_store: Dict[str, Dict[str, Any]] = {}
+        self._lock = None
     
     def record(self, name_or_metrics, value: Any = None, metric_type: Any = None, tags: Optional[Dict[str, Any]] = None):
         """
@@ -335,12 +336,44 @@ class MetricsCollector:
 
         # Custom metric path
         name = name_or_metrics
-        if metric_type and not isinstance(metric_type, MetricType):
+        metric_type = metric_type or MetricType.GAUGE
+        if not isinstance(metric_type, MetricType):
             raise TypeError("metric_type must be MetricType")
-        if metric_type == MetricType.COUNTER:
-            self.custom_metrics[name] = self.custom_metrics.get(name, 0) + (value or 0)
-        else:
-            self.custom_metrics[name] = value
+
+        if self._lock is None:
+            import threading
+            self._lock = threading.Lock()
+
+        with self._lock:
+            entry = self.metric_store.get(name, {"type": metric_type})
+            if metric_type == MetricType.COUNTER:
+                current = entry.get("value", 0)
+                self.metric_store[name] = {
+                    "type": metric_type,
+                    "value": current + (value or 0)
+                }
+            elif metric_type == MetricType.GAUGE:
+                self.metric_store[name] = {
+                    "type": metric_type,
+                    "value": value
+                }
+            elif metric_type == MetricType.HISTOGRAM:
+                values = list(entry.get("values", []))
+                if value is not None:
+                    values.append(value)
+                self.metric_store[name] = {
+                    "type": metric_type,
+                    "values": values,
+                    "count": len(values),
+                    "min": min(values) if values else None,
+                    "max": max(values) if values else None,
+                    "avg": (sum(values) / len(values)) if values else None
+                }
+            else:
+                self.metric_store[name] = {
+                    "type": metric_type,
+                    "value": value
+                }
     
     def get_trends(self, hostname: Optional[str] = None, limit: int = 10) -> Dict[str, Any]:
         """
@@ -358,8 +391,8 @@ class MetricsCollector:
         if hostname:
             metrics = [m for m in metrics if m.hostname == hostname]
         
-        # Get most recent
-        metrics = sorted(metrics, key=lambda m: m.timestamp, reverse=True)[:limit]
+        # Preserve insertion order but respect limit (use most recent entries)
+        metrics = metrics[-limit:]
         
         if not metrics:
             return {
@@ -373,16 +406,13 @@ class MetricsCollector:
         avg_risk = sum(m.risk_score for m in metrics) / len(metrics)
         avg_findings = sum(m.findings_total for m in metrics) / len(metrics)
         
-        # Detect trend (comparing first half to second half)
-        if len(metrics) >= 4:
-            mid = len(metrics) // 2
-            recent_avg_risk = sum(m.risk_score for m in metrics[:mid]) / mid
-            older_avg_risk = sum(m.risk_score for m in metrics[mid:]) / (len(metrics) - mid)
-            
-            if recent_avg_risk > older_avg_risk + 10:
-                trend = 'WORSENING'
-            elif recent_avg_risk < older_avg_risk - 10:
+        # Detect trend using first vs last measurements (lower risk is better)
+        if len(metrics) >= 2:
+            risk_change = metrics[-1].risk_score - metrics[0].risk_score
+            if risk_change <= -5:
                 trend = 'IMPROVING'
+            elif risk_change >= 5:
+                trend = 'WORSENING'
             else:
                 trend = 'STABLE'
         else:
@@ -427,11 +457,8 @@ class MetricsCollector:
             raise ValueError(f"Unknown export format: {format}")
 
     def get_stats(self) -> Dict[str, Any]:
-        """Return simple stats for tests/monitoring."""
-        return {
-            'total_audits': len(self.metrics_history),
-            'custom_metrics': self.custom_metrics
-        }
+        """Return collected custom metrics (counters, gauges, histograms)."""
+        return dict(self.metric_store)
     
     def get_summary_stats(self) -> Dict[str, Any]:
         """Get summary statistics across all recorded audits"""
@@ -454,3 +481,44 @@ class MetricsCollector:
             'total_ai_calls': sum(m.ai_api_calls for m in self.metrics_history),
             'total_ai_errors': sum(m.ai_api_errors for m in self.metrics_history),
         }
+
+    def export_prometheus(self) -> str:
+        """Export custom metrics in Prometheus text format."""
+        lines: List[str] = []
+        for name, data in self.metric_store.items():
+            mtype = data.get("type", MetricType.GAUGE)
+            prom_type = "gauge" if mtype == MetricType.GAUGE else "counter"
+            value = data.get("value")
+            if mtype == MetricType.HISTOGRAM:
+                value = data.get("avg") if data.get("avg") is not None else 0
+            if value is None:
+                value = 0
+            lines.append(f"# TYPE {name} {prom_type}")
+            lines.append(f"{name} {value}")
+        return "\n".join(lines)
+
+    def export_cloudwatch(self) -> List[Dict[str, Any]]:
+        """Export custom metrics as CloudWatch-compatible datapoints."""
+        now = datetime.utcnow()
+        cw_metrics: List[Dict[str, Any]] = []
+        for name, data in self.metric_store.items():
+            mtype = data.get("type", MetricType.GAUGE)
+            value = data.get("value")
+            unit = "Count" if mtype in (MetricType.COUNTER, MetricType.HISTOGRAM) else "None"
+            if mtype == MetricType.HISTOGRAM:
+                value = data.get("avg") if data.get("avg") is not None else 0
+            if value is None:
+                value = 0
+            cw_metrics.append({
+                "MetricName": name,
+                "Dimensions": [],
+                "Timestamp": now,
+                "Value": value,
+                "Unit": unit
+            })
+        return cw_metrics
+
+    def reset(self):
+        """Reset collected metrics and history."""
+        self.metric_store.clear()
+        self.metrics_history.clear()

@@ -7,6 +7,7 @@ from sqlalchemy import (
     ForeignKey, Index, Enum as SQLEnum, JSON
 )
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from enum import Enum
@@ -68,7 +69,7 @@ class AuditRun(Base):
     ai_api_errors = Column(Integer, default=0)
     
     # Raw results (JSON)
-    raw_results = Column(JSON)
+    raw_results = Column(MutableDict.as_mutable(JSON))
     
     # Integrity verification
     results_hash = Column(String(64))  # SHA-256 hash

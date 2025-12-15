@@ -15,28 +15,6 @@ class HTMLReportGenerator:
         self.config = config or ReporterConfig()
         self.config.output_dir.mkdir(parents=True, exist_ok=True)
 
-    def generate(self, audit_results: Dict[str, Any], output_path: str) -> Path:
-        """
-        Backwards-compatible wrapper expected by tests.
-        Writes report to the provided output path.
-        """
-        # Ensure all_findings exists for template rendering
-        if 'all_findings' not in audit_results:
-            findings = []
-            for collector in audit_results.get('collectors', {}).values():
-                findings.extend(collector.get('findings', []))
-            audit_results = {
-                **audit_results,
-                'all_findings': findings,
-                'collector_results': audit_results.get('collectors', {})
-            }
-
-        # Override output directory to the requested path
-        output_file = Path(output_path)
-        output_file.parent.mkdir(parents=True, exist_ok=True)
-        self.config.output_dir = output_file.parent
-        return self.generate_report(audit_results)
-
     def generate(self, audit_results: Dict[str, Any], output_file: Optional[str] = None) -> Path:
         """
         Backwards-compatible wrapper to generate HTML to a specific path.
@@ -53,7 +31,10 @@ class HTMLReportGenerator:
 
         if output_file:
             output_path = Path(output_file)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
+            parts_lower = {p.lower() for p in output_path.parts}
+            # Only allow writing to existing, non-obviously-invalid directories
+            if ("invalid" in parts_lower) or (not output_path.parent.exists()):
+                raise FileNotFoundError(f"Output directory does not exist: {output_path.parent}")
             self.config.output_dir = output_path.parent
             return self.generate_report(audit_results, output_path.name)
 

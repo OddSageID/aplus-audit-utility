@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import create_engine, func, desc
 from sqlalchemy.orm import sessionmaker, Session, selectinload
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.pool import NullPool
 import hashlib
 import json
 import logging
@@ -35,6 +36,7 @@ class AuditRepository:
             echo=False,
             pool_pre_ping=True,  # Verify connections before use
             pool_recycle=3600,   # Recycle connections after 1 hour
+            poolclass=NullPool,  # Avoid holding SQLite file locks across tests
         )
         self.SessionLocal = sessionmaker(
             autocommit=False,
@@ -56,6 +58,26 @@ class AuditRepository:
         """Generate SHA-256 hash of results for integrity verification"""
         content = json.dumps(results, sort_keys=True, default=str)
         return hashlib.sha256(content.encode()).hexdigest()
+
+    def _build_integrity_payload(self, audit_run: AuditRun, raw_results: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Build canonical payload used for integrity hashing."""
+        return {
+            "audit_id": audit_run.audit_id,
+            "timestamp": audit_run.timestamp.isoformat() if audit_run.timestamp else None,
+            "platform": audit_run.platform,
+            "hostname": audit_run.hostname,
+            "platform_version": audit_run.platform_version,
+            "risk_score": audit_run.risk_score,
+            "risk_level": audit_run.risk_level,
+            "total_findings": audit_run.total_findings,
+            "critical_count": audit_run.critical_count,
+            "high_count": audit_run.high_count,
+            "medium_count": audit_run.medium_count,
+            "low_count": audit_run.low_count,
+            "collectors_executed": audit_run.collectors_executed,
+            "collectors_failed": audit_run.collectors_failed,
+            "raw_results": raw_results if raw_results is not None else audit_run.raw_results,
+        }
     
     def save_audit_run(
         self,
@@ -121,18 +143,9 @@ class AuditRepository:
                 ai_provider=audit_results.get('ai_config', {}).get('provider'),
                 ai_model=audit_results.get('ai_config', {}).get('model'),
                 raw_results=audit_results,
-                results_hash=self._generate_results_hash(
-                    {
-                        "raw_results": audit_results,
-                        "risk_score": risk_score,
-                        "risk_level": risk_level,
-                        "total_findings": len(findings),
-                        "critical_count": severity_counts['critical'],
-                        "high_count": severity_counts['high'],
-                        "medium_count": severity_counts['medium'],
-                        "low_count": severity_counts['low'],
-                    }
-                )
+            )
+            audit_run.results_hash = self._generate_results_hash(
+                self._build_integrity_payload(audit_run, audit_results)
             )
             
             session.add(audit_run)
@@ -149,7 +162,7 @@ class AuditRepository:
                     remediation_hint=finding_data.get('remediation_hint'),
                     collector_name=finding_data.get('collector_name')
                 )
-                session.add(finding)
+                audit_run.findings.append(finding)
             
             # Save remediation scripts
             for script_id, script_data in audit_results.get('remediation_scripts', {}).items():
@@ -161,11 +174,16 @@ class AuditRepository:
                     script_content=script_data.get('content'),
                     approval_state=ApprovalState.PENDING
                 )
-                session.add(remediation)
+                audit_run.remediations.append(remediation)
             
             session.commit()
             self.logger.info(f"Saved audit run: {audit_run.audit_id}")
-            return audit_run
+            # Reload with relationships eager loaded so the object is usable after session close
+            loaded = session.query(AuditRun).options(
+                selectinload(AuditRun.findings),
+                selectinload(AuditRun.remediations)
+            ).filter(AuditRun.audit_id == audit_run.audit_id).first()
+            return loaded
             
         except SQLAlchemyError as e:
             session.rollback()
@@ -408,16 +426,7 @@ class AuditRepository:
             audit = session.query(AuditRun).filter(AuditRun.audit_id == audit_id).first()
             if not audit or not audit.raw_results:
                 return False
-            payload = {
-                "raw_results": audit.raw_results,
-                "risk_score": audit.risk_score,
-                "risk_level": audit.risk_level,
-                "total_findings": audit.total_findings,
-                "critical_count": audit.critical_count,
-                "high_count": audit.high_count,
-                "medium_count": audit.medium_count,
-                "low_count": audit.low_count,
-            }
+            payload = self._build_integrity_payload(audit)
             current_hash = self._generate_results_hash(payload)
             return current_hash == audit.results_hash
         finally:

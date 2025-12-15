@@ -5,6 +5,7 @@ import asyncio
 import platform
 import time
 import psutil
+import uuid
 
 from .config import AuditConfig
 from .logger import AuditLogger
@@ -45,21 +46,7 @@ class AuditOrchestrator:
             self.metrics_collector = MetricsCollector()
         
         # Audit results structure
-        self.audit_results: Dict[str, Any] = {
-            'audit_id': datetime.utcnow().strftime('%Y%m%d_%H%M%S'),
-            'timestamp': datetime.utcnow().isoformat(),
-            'platform': platform.system(),
-            'hostname': platform.node(),
-            'platform_version': platform.version(),
-            'collector_results': {},
-            'all_findings': [],
-            'ai_analysis': {},
-            'remediation_scripts': {},
-            'ai_config': {
-                'provider': config.ai.provider,
-                'model': config.ai.model
-            }
-        }
+        self.audit_results: Dict[str, Any] = self._init_audit_results()
         
         # Execution tracking
         self.start_time: Optional[float] = None
@@ -72,7 +59,47 @@ class AuditOrchestrator:
     
     def run_audit(self) -> Dict[str, Any]:
         """Synchronous wrapper for async audit execution (test-friendly)."""
-        return asyncio.run(self.run_audit_async())
+        return self._run_coro(self.run_audit_async())
+
+    @staticmethod
+    def _run_coro(coro):
+        """Run coroutine safely regardless of existing event loop."""
+        try:
+            running_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            running_loop = None
+
+        if running_loop and running_loop.is_running():
+            new_loop = asyncio.new_event_loop()
+            try:
+                return new_loop.run_until_complete(coro)
+            finally:
+                new_loop.close()
+        return asyncio.run(coro)
+
+    def _generate_audit_id(self) -> str:
+        """Generate a unique audit identifier."""
+        timestamp_part = datetime.utcnow().strftime('%Y%m%d_%H%M%S_%f')
+        suffix = uuid.uuid4().hex[:6]
+        return f"{timestamp_part}_{suffix}"
+
+    def _init_audit_results(self) -> Dict[str, Any]:
+        """Create a fresh audit results container with a unique ID."""
+        return {
+            'audit_id': self._generate_audit_id(),
+            'timestamp': datetime.utcnow().isoformat(),
+            'platform': platform.system(),
+            'hostname': platform.node(),
+            'platform_version': platform.version(),
+            'collector_results': {},
+            'all_findings': [],
+            'ai_analysis': {},
+            'remediation_scripts': {},
+            'ai_config': {
+                'provider': self.config.ai.provider,
+                'model': self.config.ai.model
+            }
+        }
 
     async def run_audit_async(self) -> Dict[str, Any]:
         """
@@ -85,6 +112,9 @@ class AuditOrchestrator:
         6. Collect metrics
         7. Return comprehensive results
         """
+        # Reset state for each run
+        self.audit_results = self._init_audit_results()
+        self.execution_metrics = None
         self.start_time = time.time()
         
         self.logger.info(f"Starting audit {self.audit_results['audit_id']}")

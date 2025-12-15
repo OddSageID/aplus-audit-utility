@@ -69,11 +69,11 @@ class BaseCollector(ABC):
 
     async def collect_async(self) -> CollectorResult:
         """Async entrypoint (backwards compatible)."""
-        return await self._collect()
+        return await self.safe_collect()
 
     def collect(self) -> CollectorResult:
         """Synchronous wrapper expected by tests."""
-        return self._run_coro(self._collect())
+        return self._run_coro(self.safe_collect())
 
     @staticmethod
     def _run_coro(coro):
@@ -156,7 +156,15 @@ class BaseCollector(ABC):
         start_time = time.time()
         try:
             result = await self._collect()
-            result.execution_time_ms = (time.time() - start_time) * 1000.0
+            duration_ms = (time.time() - start_time) * 1000.0
+            if result is None:
+                result = CollectorResult(
+                    collector_name=self.name,
+                    status=CollectorStatus.FAILED,
+                    errors=["Collector returned no result"]
+                )
+            if result.execution_time_ms is None:
+                result.execution_time_ms = duration_ms
         except Exception as e:
             self.logger.error(f"Collection failed: {str(e)}", exc_info=True)
             result.errors.append(str(e))

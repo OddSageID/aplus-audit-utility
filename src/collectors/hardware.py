@@ -37,10 +37,15 @@ class HardwareCollector(BaseCollector):
             
             # Memory Information
             mem = psutil.virtual_memory()
+            mem_used = getattr(mem, "used", mem.total - mem.available)
+            mem_percent = getattr(mem, "percent", None)
+            if mem_percent is None and mem.total:
+                mem_percent = round((mem_used / mem.total) * 100, 2)
             result.data['memory'] = {
                 'total_gb': round(mem.total / (1024**3), 2),
                 'available_gb': round(mem.available / (1024**3), 2),
-                'used_percent': mem.percent,
+                'used_percent': mem_percent,
+                'percent': mem_percent,
                 'swap_total_gb': round(psutil.swap_memory().total / (1024**3), 2)
             }
             
@@ -49,6 +54,9 @@ class HardwareCollector(BaseCollector):
             for partition in psutil.disk_partitions():
                 try:
                     usage = psutil.disk_usage(partition.mountpoint)
+                    usage_percent = getattr(usage, "percent", None)
+                    if usage_percent is None and usage.total:
+                        usage_percent = round((usage.used / usage.total) * 100, 2)
                     disks.append({
                         'device': partition.device,
                         'mountpoint': partition.mountpoint,
@@ -56,11 +64,14 @@ class HardwareCollector(BaseCollector):
                         'total_gb': round(usage.total / (1024**3), 2),
                         'used_gb': round(usage.used / (1024**3), 2),
                         'free_gb': round(usage.free / (1024**3), 2),
-                        'used_percent': usage.percent
+                        'used_percent': usage_percent,
+                        'percent': usage_percent
                     })
                 except PermissionError:
                     continue
             result.data['storage'] = disks
+            # Expose a shorter alias expected by some consumers/tests
+            result.data['disk'] = disks
             
             # System Information
             result.data['system'] = {

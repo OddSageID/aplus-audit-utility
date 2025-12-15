@@ -9,6 +9,7 @@ from enum import Enum
 import asyncio
 import logging
 from collections import deque
+import inspect
 
 
 class CircuitState(Enum):
@@ -126,8 +127,14 @@ class RateLimiter:
             self._lock = asyncio.Lock()
 
         async with self._lock:
-            self._concurrent_count = max(0, self._concurrent_count - 1)
+            had_request = self._concurrent_count > 0
+            if had_request:
+                self._concurrent_count = max(0, self._concurrent_count - 1)
             
+            # Only record outcomes when a request was actually in flight
+            if not had_request:
+                return
+
             if success:
                 await self._record_success()
             else:
@@ -163,6 +170,10 @@ class RateLimiter:
                 self._failure_count = 0
                 self._success_count = 0
                 self.logger.info("Circuit breaker: HALF_OPEN -> CLOSED")
+        else:
+            # Reset failure streak on normal successes
+            if self._failure_count > 0:
+                self._failure_count = 0
     
     async def _record_failure(self):
         """Record failed request and update circuit breaker"""
@@ -307,7 +318,10 @@ class RateLimitedAPIClient:
             API response
         """
         async def _create():
-            return self.client.messages.create(**kwargs)
+            result = self.client.messages.create(**kwargs)
+            if inspect.isawaitable(result):
+                return await result
+            return result
         
         return await self.rate_limiter.execute_with_retry(_create)
     
@@ -322,6 +336,9 @@ class RateLimitedAPIClient:
             API response
         """
         async def _create():
-            return self.client.chat.completions.create(**kwargs)
+            result = self.client.chat.completions.create(**kwargs)
+            if inspect.isawaitable(result):
+                return await result
+            return result
         
         return await self.rate_limiter.execute_with_retry(_create)
