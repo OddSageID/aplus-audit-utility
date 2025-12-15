@@ -7,6 +7,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   test:
     name: Test on ${{ matrix.os }} with Python ${{ matrix.python-version }}
@@ -82,8 +85,7 @@ jobs:
     
     - name: Lint with pylint
       run: |
-        pylint src/ --disable=C0111,R0913,R0914 --max-line-length=100
-      continue-on-error: true
+        pylint src/ --disable=C,R,W --max-line-length=100 --fail-under=9.0
 
   security:
     name: Security Scan
@@ -104,8 +106,7 @@ jobs:
     
     - name: Run Bandit security scan
       run: |
-        bandit -r src/ -f json -o bandit-report.json
-      continue-on-error: true
+        bandit -r src/ -f json -o bandit-report.json --severity-level HIGH --confidence-level HIGH
     
     - name: Check for known vulnerabilities
       run: |
@@ -114,6 +115,7 @@ jobs:
     
     - name: Upload security report
       uses: actions/upload-artifact@v4
+      if: always()
       with:
         name: security-report
         path: bandit-report.json
@@ -200,15 +202,33 @@ jobs:
         echo "version=$VERSION" >> $GITHUB_OUTPUT
     
     - name: Create Git tag
+      env:
+        VERSION: ${{ steps.get_version.outputs.version }}
       run: |
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
-        git tag -a v${{ steps.get_version.outputs.version }} -m "Release v${{ steps.get_version.outputs.version }}"
-        git push origin v${{ steps.get_version.outputs.version }}
-      continue-on-error: true
-    
+        if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
+          echo "Tag v${VERSION} already exists; skipping creation."
+        else
+          git tag -a "v${VERSION}" -m "Release v${VERSION}"
+          git push origin "v${VERSION}"
+        fi
+
+    - name: Check if release exists
+      id: release_exists
+      env:
+        VERSION: ${{ steps.get_version.outputs.version }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        if gh release view "v${VERSION}" >/dev/null 2>&1; then
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
+      if: steps.release_exists.outputs.exists == 'false'
       with:
         tag_name: v${{ steps.get_version.outputs.version }}
         name: Release v${{ steps.get_version.outputs.version }}
@@ -229,4 +249,5 @@ jobs:
           ```
         draft: false
         prerelease: false
-      continue-on-error: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
