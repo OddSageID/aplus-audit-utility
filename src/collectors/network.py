@@ -4,6 +4,7 @@ from typing import List
 import psutil
 
 from .base_collector import BaseCollector, CollectorResult, CollectorStatus
+
 # Collectors must be resilient to platform-specific psutil failures.
 # pylint: disable=broad-exception-caught
 

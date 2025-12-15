@@ -118,8 +118,6 @@ class BaseCollector(ABC):  # pylint: disable=too-many-instance-attributes
 
         if self.platform == "Windows":
             try:
-                import ctypes
-
                 return ctypes.windll.shell32.IsUserAnAdmin() != 0  # type: ignore[attr-defined]
             except Exception:  # pylint: disable=broad-exception-caught
                 return False

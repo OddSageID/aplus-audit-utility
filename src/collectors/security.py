@@ -1,9 +1,9 @@
-import subprocess
 import json
 import subprocess
 from typing import List
 
 from .base_collector import BaseCollector, CollectorResult, CollectorStatus
+
 # Collectors should capture errors without failing execution.
 # pylint: disable=broad-exception-caught
 
@@ -46,8 +46,6 @@ class SecurityCollector(BaseCollector):
             ]
             output = subprocess.run(cmd, capture_output=True, text=True, timeout=10, check=False)
             if output.returncode == 0:
-                import json
-
                 status = json.loads(output.stdout)
                 if not status.get("RealTimeProtectionEnabled", False):
                     result.add_finding(
@@ -70,8 +68,6 @@ class SecurityCollector(BaseCollector):
             ]
             output = subprocess.run(cmd, capture_output=True, text=True, timeout=10, check=False)
             if output.returncode == 0:
-                import json
-
                 profiles = json.loads(output.stdout)
                 if isinstance(profiles, dict):
                     profiles = [profiles]
@@ -95,7 +91,7 @@ class SecurityCollector(BaseCollector):
                 "-Command",
                 (
                     r'Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" '
-                    r'-Name EnableLUA | Select-Object -ExpandProperty EnableLUA'
+                    r"-Name EnableLUA | Select-Object -ExpandProperty EnableLUA"
                 ),
             ]
             output = subprocess.run(cmd, capture_output=True, text=True, timeout=10, check=False)

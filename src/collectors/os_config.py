@@ -3,6 +3,7 @@ import subprocess
 from typing import List
 
 from .base_collector import BaseCollector, CollectorResult, CollectorStatus
+
 # Collectors should degrade gracefully on permission/platform issues.
 # pylint: disable=broad-exception-caught
 
