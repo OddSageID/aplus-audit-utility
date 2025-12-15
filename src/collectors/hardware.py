@@ -4,6 +4,8 @@ from typing import List
 import cpuinfo
 import psutil
 
+from .base_collector import BaseCollector, CollectorResult, CollectorStatus
+
 # Compatibility: some platforms ship psutil without cpu_freq. Provide a stub.
 if not hasattr(psutil, "cpu_freq"):
 
@@ -11,8 +13,6 @@ if not hasattr(psutil, "cpu_freq"):
         return None
 
     psutil.cpu_freq = _cpu_freq_stub  # type: ignore[attr-defined]
-
-from .base_collector import BaseCollector, CollectorResult, CollectorStatus
 
 
 class HardwareCollector(BaseCollector):
@@ -35,10 +35,10 @@ class HardwareCollector(BaseCollector):
             cpu_freq_fn = getattr(psutil, "cpu_freq", None)
             cpu_freq = None
             try:
-                if cpu_freq_fn:
+                if cpu_freq_fn is not None:
                     freq_obj = cpu_freq_fn()
                     cpu_freq = freq_obj.current if freq_obj else None
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 # Permission errors or missing API should not break collection
                 result.errors.append(f"CPU frequency unavailable: {e}")
                 cpu_freq = None
@@ -137,7 +137,7 @@ class HardwareCollector(BaseCollector):
                     remediation_hint="Check Task Manager for resource-intensive processes",
                 )
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             result.errors.append(f"Hardware collection error: {str(e)}")
             result.status = CollectorStatus.PARTIAL
 

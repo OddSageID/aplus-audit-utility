@@ -1,11 +1,12 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional
-
 import asyncio
+import json
 import platform
 import time
-import psutil
 import uuid
+from typing import Any, Dict, List, Optional
+
+import psutil
 
 from .config import AuditConfig
 from .logger import AuditLogger
@@ -15,7 +16,7 @@ from ..analyzers.ai_analyzer import AIAnalyzer
 from ..database.repository import AuditRepository
 
 
-class AuditOrchestrator:
+class AuditOrchestrator:  # pylint: disable=too-many-instance-attributes
     """
     Coordinates complete system audit workflow with database persistence and metrics.
     Implements Facade pattern for simplified audit execution.
@@ -33,7 +34,7 @@ class AuditOrchestrator:
             try:
                 self.repository = AuditRepository(database_url=config.database_url)
                 self.logger.info("Database initialized: %s", config.database_url)
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 self.logger.error("Failed to initialize database: %s", e)
                 self.repository = None
 
@@ -121,7 +122,8 @@ class AuditOrchestrator:
             if self.audit_results["all_findings"]:
                 if self.ai_analyzer.client:
                     self.logger.info(
-                        f"Running AI analysis on {len(self.audit_results['all_findings'])} findings"
+                        "Running AI analysis on %s findings",
+                        len(self.audit_results["all_findings"]),
                     )
                 else:
                     self.logger.info("AI analysis disabled; using fallback analysis")
@@ -157,7 +159,7 @@ class AuditOrchestrator:
                         execution_time_seconds=execution_time,
                     )
                     self.logger.info("Audit results saved to database")
-                except Exception as e:
+                except Exception as e:  # pylint: disable=broad-exception-caught
                     self.logger.error("Failed to save audit to database: %s", e)
 
             # Phase 7: Record metrics
@@ -170,7 +172,7 @@ class AuditOrchestrator:
 
             return self.audit_results
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error("Audit execution failed: %s", e, exc_info=True)
             raise
 
@@ -245,7 +247,7 @@ class AuditOrchestrator:
             process = psutil.Process()
             self.execution_metrics.memory_used_mb = process.memory_info().rss / (1024 * 1024)
             self.execution_metrics.cpu_percent = process.cpu_percent(interval=0.1)
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             pass
 
     async def _run_collectors(self):
@@ -340,7 +342,8 @@ class AuditOrchestrator:
                     finding=finding, platform=self.audit_results["platform"]
                 )
 
-                script_filename = f"remediate_{finding['check_id']}.{'ps1' if self.audit_results['platform'] == 'Windows' else 'sh'}"
+                extension = "ps1" if self.audit_results["platform"] == "Windows" else "sh"
+                script_filename = f"remediate_{finding['check_id']}.{extension}"
                 self.audit_results["remediation_scripts"][finding["check_id"]] = {
                     "filename": script_filename,
                     "content": script,
@@ -350,7 +353,7 @@ class AuditOrchestrator:
                 self.logger.error("Failed to generate script for %s: %s", finding["check_id"], e)
 
         self.logger.info(
-            f"Generated {len(self.audit_results['remediation_scripts'])} remediation scripts"
+            "Generated %d remediation scripts", len(self.audit_results["remediation_scripts"])
         )
 
     def get_metrics_summary(self) -> Optional[Dict[str, Any]]:
@@ -360,18 +363,16 @@ class AuditOrchestrator:
 
         return self.execution_metrics.to_dict()
 
-    def export_metrics(self, format: str = "json") -> Optional[str]:
+    def export_metrics(self, output_format: str = "json") -> Optional[str]:
         """Export metrics in specified format"""
         if not self.execution_metrics:
             return None
 
-        if format == "json":
+        if output_format == "json":
             return self.execution_metrics.to_json()
-        elif format == "prometheus":
+        elif output_format == "prometheus":
             return self.execution_metrics.to_prometheus()
-        elif format == "cloudwatch":
-            import json
-
+        elif output_format == "cloudwatch":
             return json.dumps(self.execution_metrics.to_cloudwatch(), indent=2, default=str)
         else:
-            raise ValueError(f"Unknown export format: {format}")
+            raise ValueError(f"Unknown export format: {output_format}")

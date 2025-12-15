@@ -35,11 +35,11 @@ class AIAnalyzer:
         base_client = None
         testing_env = os.getenv("PYTEST_CURRENT_TEST") is not None
         if api_key and provider == "anthropic":
-            from anthropic import Anthropic
+            from anthropic import Anthropic  # pylint: disable=import-outside-toplevel
 
             base_client = Anthropic(api_key=api_key)
         elif api_key and provider == "openai":
-            from openai import OpenAI
+            from openai import OpenAI  # pylint: disable=import-outside-toplevel
 
             base_client = OpenAI(api_key=api_key)
         else:
@@ -144,7 +144,7 @@ class AIAnalyzer:
                 self.total_api_errors += 1
                 return self._fallback_analysis(findings)
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error("AI analysis failed: %s", e)
             self.total_api_errors += 1
             return self._fallback_analysis(findings)
@@ -207,7 +207,7 @@ Script:"""
             self.total_api_calls += 1
             return script
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error("Remediation script generation failed: %s", e)
             self.total_api_errors += 1
             return self._fallback_remediation_script(finding, platform)
@@ -221,22 +221,22 @@ Script:"""
             ]
         )
 
-        return f"""Analyze this system security audit and provide a JSON response with the following structure:
-{{
-    "risk_score": <integer 0-100>,
-    "executive_summary": "<concise 2-3 sentence summary>",
-    "critical_issues": ["<critical issue 1>", "<critical issue 2>"],
-    "recommendations": ["<actionable recommendation 1>", "<actionable recommendation 2>"]
-}}
-
-System Information:
-- Platform: {audit_data.get('platform', 'Unknown')}
-- Hostname: {audit_data.get('hostname', 'Unknown')}
-
-Findings ({len(findings)} total):
-{findings_text}
-
-Provide ONLY the JSON response, no additional text."""
+        return (
+            "Analyze this system security audit and provide a JSON response with the following "
+            "structure:\n"
+            "{\n"
+            '    "risk_score": <integer 0-100>,\n'
+            '    "executive_summary": "<concise 2-3 sentence summary>",\n'
+            '    "critical_issues": ["<critical issue 1>", "<critical issue 2>"],\n'
+            '    "recommendations": ["<actionable recommendation 1>", "<actionable recommendation 2>"]\n'
+            "}\n\n"
+            "System Information:\n"
+            f"- Platform: {audit_data.get('platform', 'Unknown')}\n"
+            f"- Hostname: {audit_data.get('hostname', 'Unknown')}\n\n"
+            f"Findings ({len(findings)} total):\n"
+            f"{findings_text}\n\n"
+            "Provide ONLY the JSON response, no additional text."
+        )
 
     def _fallback_analysis(self, findings: List[Dict]) -> Dict[str, Any]:
         """Fallback analysis when AI is unavailable"""

@@ -3,24 +3,25 @@ Database models for audit history tracking.
 Supports both SQLite (local) and PostgreSQL (production).
 """
 
+from datetime import datetime
+from enum import Enum
 from typing import Any
+
 from sqlalchemy import (
-    Column,
-    String,
-    Integer,
-    Float,
-    DateTime,
-    Text,
     Boolean,
+    Column,
+    DateTime,
+    Enum as SQLEnum,
+    Float,
     ForeignKey,
     Index,
-    Enum as SQLEnum,
+    Integer,
     JSON,
+    String,
+    Text,
 )
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import DeclarativeBase, relationship
-from datetime import datetime
-from enum import Enum
 
 
 class Base(DeclarativeBase):

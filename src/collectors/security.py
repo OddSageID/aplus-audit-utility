@@ -1,7 +1,11 @@
 import subprocess
+import json
+import subprocess
 from typing import List
 
 from .base_collector import BaseCollector, CollectorResult, CollectorStatus
+# Collectors should capture errors without failing execution.
+# pylint: disable=broad-exception-caught
 
 
 class SecurityCollector(BaseCollector):
@@ -89,7 +93,10 @@ class SecurityCollector(BaseCollector):
             cmd = [
                 "powershell.exe",
                 "-Command",
-                r'Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name EnableLUA | Select-Object -ExpandProperty EnableLUA',
+                (
+                    r'Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" '
+                    r'-Name EnableLUA | Select-Object -ExpandProperty EnableLUA'
+                ),
             ]
             output = subprocess.run(cmd, capture_output=True, text=True, timeout=10, check=False)
             if output.returncode == 0 and output.stdout.strip() != "1":
@@ -125,7 +132,7 @@ class SecurityCollector(BaseCollector):
 
         # Check SSH config
         try:
-            with open("/etc/ssh/sshd_config", "r") as f:
+            with open("/etc/ssh/sshd_config", "r", encoding="utf-8") as f:
                 ssh_config = f.read()
                 if "PermitRootLogin yes" in ssh_config:
                     result.add_finding(

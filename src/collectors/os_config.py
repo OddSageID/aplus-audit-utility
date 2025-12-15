@@ -3,6 +3,8 @@ import subprocess
 from typing import List
 
 from .base_collector import BaseCollector, CollectorResult, CollectorStatus
+# Collectors should degrade gracefully on permission/platform issues.
+# pylint: disable=broad-exception-caught
 
 
 class OSConfigCollector(BaseCollector):
@@ -68,7 +70,7 @@ class OSConfigCollector(BaseCollector):
     def _check_linux_config(self, result: CollectorResult):
         """Linux configuration checks"""
         try:
-            with open("/etc/passwd", "r") as f:
+            with open("/etc/passwd", "r", encoding="utf-8") as f:
                 users = [line.split(":")[0] for line in f.readlines()]
                 result.data["users"] = {"count": len(users)}
         except Exception:
@@ -78,7 +80,7 @@ class OSConfigCollector(BaseCollector):
         """macOS configuration checks"""
         try:
             cmd = ["dscl", ".", "list", "/Users"]
-            output = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            output = subprocess.run(cmd, capture_output=True, text=True, timeout=10, check=False)
             if output.returncode == 0:
                 users = output.stdout.strip().split("\n")
                 result.data["users"] = {"count": len(users)}

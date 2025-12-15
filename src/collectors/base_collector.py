@@ -1,9 +1,11 @@
+import asyncio
+import ctypes
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import asyncio
 import logging
+import os
 import platform
 import time
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
@@ -42,7 +44,7 @@ class CollectorResult:
         current_value: Any,
         expected_value: Any,
         remediation_hint: Optional[str] = None,
-    ):
+    ):  # pylint: disable=too-many-positional-arguments
         """Add a security finding"""
         self.findings.append(
             {
@@ -56,7 +58,7 @@ class CollectorResult:
         )
 
 
-class BaseCollector(ABC):
+class BaseCollector(ABC):  # pylint: disable=too-many-instance-attributes
     """
     Abstract base class for all system data collectors.
     Implements Template Method pattern.
@@ -68,7 +70,7 @@ class BaseCollector(ABC):
     def __init__(self, config: Optional["AuditConfig"] = None):
         # Lazy import to avoid circular import at module load time
         if config is None:
-            from src.core.config import AuditConfig  # type: ignore
+            from src.core.config import AuditConfig  # pylint: disable=import-outside-toplevel
 
             config = AuditConfig()
         self.config = config
@@ -98,12 +100,12 @@ class BaseCollector(ABC):
     @abstractmethod
     def requires_admin(self) -> bool:
         """Return True if this collector requires admin/root privileges"""
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def supported_platforms(self) -> List[str]:
         """Return list of supported platforms: ['Windows', 'Linux', 'Darwin']"""
-        pass
+        raise NotImplementedError
 
     def is_supported(self) -> bool:
         """Check if current platform is supported"""
@@ -114,14 +116,12 @@ class BaseCollector(ABC):
         if not self.requires_admin():
             return True
 
-        import os
-
         if self.platform == "Windows":
             try:
                 import ctypes
 
                 return ctypes.windll.shell32.IsUserAnAdmin() != 0  # type: ignore[attr-defined]
-            except Exception:
+            except Exception:  # pylint: disable=broad-exception-caught
                 return False
         if hasattr(os, "geteuid"):
             return os.geteuid() == 0  # type: ignore[attr-defined]
@@ -170,7 +170,7 @@ class BaseCollector(ABC):
                 )
             if result.execution_time_ms is None:
                 result.execution_time_ms = duration_ms
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error("Collection failed: %s", str(e), exc_info=True)
             result.errors.append(str(e))
             result.status = CollectorStatus.FAILED
