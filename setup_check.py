@@ -9,8 +9,6 @@ Course: Technical Support Fundamentals - Final Project
 """
 
 import sys
-import subprocess
-import os
 from pathlib import Path
 from typing import Tuple, List, Dict, Any, Optional
 import argparse
@@ -31,7 +29,7 @@ def check_python_version() -> bool:
     version = sys.version_info
     if version < (3, 8):
         print(f"   ❌ Python 3.8+ required (found {version.major}.{version.minor})")
-        print(f"   → Download from: https://www.python.org/downloads/")
+        print("   → Download from: https://www.python.org/downloads/")
         return False
 
     print(f"   ✅ Python {version.major}.{version.minor}.{version.micro}")
@@ -94,31 +92,31 @@ def check_env_file() -> bool:
     env_example = Path(".env.example")
 
     if not env_example.exists():
-        print(f"   ⚠️  .env.example not found (expected in project root)")
+        print("   ⚠️  .env.example not found (expected in project root)")
 
     if not env_file.exists():
-        print(f"   ❌ .env file not found")
-        print(f"   → Copy .env.example to .env and configure")
+        print("   ❌ .env file not found")
+        print("   → Copy .env.example to .env and configure")
         if env_example.exists():
-            print(f"   → Run: cp .env.example .env")
+            print("   → Run: cp .env.example .env")
         return False
 
-    print(f"   ✅ .env file exists")
+    print("   ✅ .env file exists")
 
     # Check for API key configuration
     try:
-        with open(env_file) as f:
+        with open(env_file, encoding="utf-8") as f:
             content = f.read()
 
             # Check if placeholder values are still present
             if "your_anthropic_api_key_here" in content or "your_openai_api_key_here" in content:
-                print(f"   ⚠️  API key appears to be placeholder")
-                print(f"   → Update ANTHROPIC_API_KEY or OPENAI_API_KEY in .env")
+                print("   ⚠️  API key appears to be placeholder")
+                print("   → Update ANTHROPIC_API_KEY or OPENAI_API_KEY in .env")
                 return False
 
             if "xxxxxxxxxxxxxxxxxxxxx" in content:
-                print(f"   ⚠️  API key appears to be placeholder")
-                print(f"   → Update ANTHROPIC_API_KEY or OPENAI_API_KEY in .env")
+                print("   ⚠️  API key appears to be placeholder")
+                print("   → Update ANTHROPIC_API_KEY or OPENAI_API_KEY in .env")
                 return False
 
             # Check if at least one API key is configured
@@ -126,12 +124,12 @@ def check_env_file() -> bool:
             has_openai = "OPENAI_API_KEY=" in content and "sk-" in content
 
             if not (has_anthropic or has_openai):
-                print(f"   ⚠️  No valid API key detected")
-                print(f"   → Add ANTHROPIC_API_KEY or OPENAI_API_KEY to .env")
-                print(f"   → Note: You can run with --quick flag to skip AI analysis")
+                print("   ⚠️  No valid API key detected")
+                print("   → Add ANTHROPIC_API_KEY or OPENAI_API_KEY to .env")
+                print("   → Note: You can run with --quick flag to skip AI analysis")
                 return False
 
-            print(f"   ✅ API key configured")
+            print("   ✅ API key configured")
 
     except Exception as e:
         print(f"   ⚠️  Error reading .env: {e}")
@@ -160,7 +158,7 @@ def check_permissions() -> bool:
 
     except PermissionError:
         print(f"   ❌ Cannot write to output directory: {output_dir.absolute()}")
-        print(f"   → Check directory permissions")
+        print("   → Check directory permissions")
         return False
     except Exception as e:
         print(f"   ❌ Error testing permissions: {e}")
@@ -179,7 +177,7 @@ def check_database() -> bool:
         if db_file.exists():
             print(f"   ✅ Database file exists ({db_file.absolute()})")
         else:
-            print(f"   ✅ Database will be created on first run")
+            print("   ✅ Database will be created on first run")
 
         return True
 
@@ -195,35 +193,37 @@ def check_platform_specifics() -> None:
     platform = sys.platform
 
     if platform == "win32":
-        print(f"   ℹ️  Platform: Windows")
+        print("   ℹ️  Platform: Windows")
 
         # Check for WMI
         try:
             import wmi
 
-            print(f"   ✅ WMI available (Windows Management Instrumentation)")
+            _ = wmi
+            print("   ✅ WMI available (Windows Management Instrumentation)")
         except ImportError:
-            print(f"   ⚠️  WMI not installed (optional, improves Windows checks)")
-            print(f"   → Install: pip install wmi")
+            print("   ⚠️  WMI not installed (optional, improves Windows checks)")
+            print("   → Install: pip install wmi")
 
         # Check for pywin32
         try:
             import win32api
 
-            print(f"   ✅ pywin32 available (Windows API access)")
+            _ = win32api
+            print("   ✅ pywin32 available (Windows API access)")
         except ImportError:
-            print(f"   ⚠️  pywin32 not installed (optional, improves Windows checks)")
-            print(f"   → Install: pip install pywin32")
+            print("   ⚠️  pywin32 not installed (optional, improves Windows checks)")
+            print("   → Install: pip install pywin32")
 
     elif platform == "linux":
-        print(f"   ℹ️  Platform: Linux")
-        print(f"   ℹ️  Some security checks require root/sudo privileges")
-        print(f"   → Run with --no-admin flag for testing without privileges")
+        print("   ℹ️  Platform: Linux")
+        print("   ℹ️  Some security checks require root/sudo privileges")
+        print("   → Run with --no-admin flag for testing without privileges")
 
     elif platform == "darwin":
-        print(f"   ℹ️  Platform: macOS")
-        print(f"   ℹ️  Some security checks require admin privileges")
-        print(f"   → Run with --no-admin flag for testing without privileges")
+        print("   ℹ️  Platform: macOS")
+        print("   ℹ️  Some security checks require admin privileges")
+        print("   → Run with --no-admin flag for testing without privileges")
 
     else:
         print(f"   ⚠️  Platform: {platform} (untested)")
@@ -305,7 +305,7 @@ def run_checks(output_format: str = "pretty") -> Dict[str, Any]:
                 print("\n💡 To install missing dependencies:")
                 print(f"   pip install {' '.join(results['missing_packages'])}")
                 print("\n   Or install all requirements:")
-                print(f"   pip install -r requirements.txt")
+                print("   pip install -r requirements.txt")
             print("\n📖 Refer to README.md for detailed setup instructions")
 
     return results
@@ -335,8 +335,8 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 if __name__ == "__main__":
     try:
-        exit_code = main()
-        sys.exit(exit_code)
+        EXIT_CODE = main()
+        sys.exit(EXIT_CODE)
     except KeyboardInterrupt:
         print("\n\n⚠️  Validation interrupted by user")
         sys.exit(130)
