@@ -72,9 +72,7 @@ class AIAnalyzer:
         all_findings = audit_results.get("all_findings", [])
         if not all_findings:
             collectors = (
-                audit_results.get("collector_results")
-                or audit_results.get("collectors")
-                or {}
+                audit_results.get("collector_results") or audit_results.get("collectors") or {}
             )
             for collector in collectors.values():
                 if isinstance(collector, dict):

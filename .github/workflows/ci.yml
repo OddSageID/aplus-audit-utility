@@ -107,7 +107,7 @@ jobs:
     
     - name: Run Bandit security scan
       run: |
-        bandit -r src/ -f json -o bandit-report.json --severity-level HIGH --confidence-level HIGH
+        bandit -r src/ -f json -o bandit-report.json --severity-level high --confidence-level high
     
     - name: Check for known vulnerabilities
       run: |
