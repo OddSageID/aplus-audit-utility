@@ -56,6 +56,16 @@ class AIProviderEnum(str, Enum):
     NONE = "none"
 
 
+def _normalize_windows_path(path_str: str) -> str:
+    """Lowercase and normalize slashes for Windows-style checks."""
+    return str(path_str).replace("/", "\\").lower()
+
+
+def _is_windows_absolute(path_str: str) -> bool:
+    """Detect Windows drive absolute paths regardless of platform semantics."""
+    return bool(re.match(r"^[A-Za-z]:[\\/].*", str(path_str)))
+
+
 class CLIArgumentsSchema(BaseModel):
     """Validation schema for CLI arguments"""
 
@@ -84,18 +94,25 @@ class CLIArgumentsSchema(BaseModel):
         if ".." in v:
             raise ValueError("Path traversal detected in output path")
 
+        path_str = str(v)
+        normalized_windows = _normalize_windows_path(path_str)
+
         # Prevent absolute paths to system directories
         dangerous_paths = [
             "/etc",
             "/sys",
             "/proc",
             "/dev",
-            "C:\\Windows",
-            "C:\\System32",
         ]
         for dangerous in dangerous_paths:
-            if v.startswith(dangerous):
+            if path_str.startswith(dangerous):
                 raise ValueError(f"Cannot write to system directory: {dangerous}")
+
+        windows_system_roots = ["c:\\windows", "c:\\windows\\system32"]
+        if _is_windows_absolute(path_str):
+            for root in windows_system_roots:
+                if normalized_windows == root or normalized_windows.startswith(root + "\\"):
+                    raise ValueError(f"Cannot write to system directory: {root}")
 
         # Ensure reasonable length
         if len(v) > 500:

@@ -3,6 +3,7 @@ name: CI/CD Pipeline
 on:
   push:
     branches: [ main, develop ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -85,22 +86,7 @@ jobs:
     
     - name: Lint with pylint
       run: |
-        set -e
-        pylint src/ main.py setup_check.py --max-line-length=100 --fail-under=9.2 || rc=$?
-        rc=${rc:-0}
-        if [ $rc -eq 0 ]; then
-          exit 0
-        fi
-        # Fail on fatal/errors or score below threshold, ignore convention/refactor/warning bits
-        if [ $((rc & 1)) -ne 0 ] || [ $((rc & 2)) -ne 0 ]; then
-          echo "Pylint encountered fatal/error issues (rc=$rc)"
-          exit $rc
-        fi
-        if [ $((rc & 32)) -ne 0 ]; then
-          echo "Pylint score below required threshold (9.2/10)"
-          exit 1
-        fi
-        echo "Pylint returned non-blocking status (rc=$rc); continuing."
+        pylint src main.py setup_check.py --max-line-length=100 --fail-under=9.5
 
   security:
     name: Security Scan
@@ -121,7 +107,7 @@ jobs:
     
     - name: Run Bandit security scan
       run: |
-        bandit -r src/ -f json -o bandit-report.json --severity-level high --confidence-level high
+        bandit -r src/ -f json -o bandit-report.json --severity-level HIGH --confidence-level HIGH
     
     - name: Check for known vulnerabilities
       run: |
@@ -139,7 +125,7 @@ jobs:
     name: Build Docker Image
     runs-on: ubuntu-latest
     needs: [test, lint]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
     
     steps:
     - name: Checkout code
@@ -202,57 +188,42 @@ jobs:
     name: Create Release
     runs-on: ubuntu-latest
     needs: [test, lint, security, build]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-    
-    - name: Get version
-      id: get_version
-      run: |
-        VERSION=$(grep -oP '(?<=Version\*\*: )\d+\.\d+\.\d+' README.md | head -1)
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-    - name: Validate version
-      env:
-        VERSION: ${{ steps.get_version.outputs.version }}
+    - name: Get release metadata
+      id: release_meta
       run: |
-        if [ -z "$VERSION" ]; then
-          echo "Release version not found in README.md"
+        TAG_NAME="${GITHUB_REF#refs/tags/}"
+        if [ -z "$TAG_NAME" ]; then
+          echo "Tag name is required for releases."
           exit 1
         fi
-    
-    - name: Ensure Git tag exists
-      id: ensure_tag
-      env:
-        VERSION: ${{ steps.get_version.outputs.version }}
-      run: |
-        git config user.name "GitHub Actions"
-        git config user.email "actions@github.com"
-        if git ls-remote --tags origin "refs/tags/v${VERSION}" | grep -q "refs/tags/v${VERSION}"; then
-          echo "tag_exists=true" >> "$GITHUB_OUTPUT"
-          echo "Tag v${VERSION} already exists; skipping creation."
-        else
-          git tag -a "v${VERSION}" -m "Release v${VERSION}"
-          git push origin "v${VERSION}"
-          echo "tag_exists=false" >> "$GITHUB_OUTPUT"
+        if ! echo "$TAG_NAME" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+          echo "Release tags must follow vMAJOR.MINOR.PATCH (got: $TAG_NAME)"
+          exit 1
         fi
+        VERSION="${TAG_NAME#v}"
+        echo "tag=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+        echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
     - name: Create or Update GitHub Release
       uses: softprops/action-gh-release@v2
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
-        tag_name: v${{ steps.get_version.outputs.version }}
-        name: Release v${{ steps.get_version.outputs.version }}
+        tag_name: ${{ steps.release_meta.outputs.tag }}
+        name: Release v${{ steps.release_meta.outputs.version }}
         draft: false
         prerelease: false
         fail_on_unmatched_files: false
         generate_release_notes: false
         body: |
-          ## A+ System Audit Utility v${{ steps.get_version.outputs.version }}
+          ## A+ System Audit Utility v${{ steps.release_meta.outputs.version }}
           
           Production-ready enterprise security auditing tool implementing CIS Benchmark Level 1 controls.
           
