@@ -7,6 +7,15 @@
 
 Comprehensive system auditing tool implementing CIS Benchmark Level 1 controls and CompTIA A+ best practices with production-grade features including database persistence, metrics collection, rate limiting, and comprehensive input validation.
 
+## AI Governance & Scope
+
+- AI-assisted output is advisory decision support; it may be incomplete or incorrect and must be validated by a qualified human.
+- This CLI has no autonomous authority: it does not take independent actions in your environment beyond collecting data and writing reports to disk.
+- Remediation scripts (when generated) are suggestions only and require human review, testing, and change control before execution.
+- AI usage is optional and can be disabled (`--ai none` or `--quick`) to run as a purely local audit tool.
+- AI provider selection and model are recorded in outputs (`ai_config`) so AI-assisted content can be identified and audited.
+- Governing document: the external AI Operations and Governance Policy (AI‑GOV‑007, v1.1, effective 2025‑12‑08) defines accountability, escalation paths, and prohibited uses for AI outputs.
+
 ## Features
 
 ### Core Capabilities
@@ -337,6 +346,16 @@ Configuration:
 - SHA-256 hashing of audit results
 - Integrity verification on retrieval
 - Tamper detection
+
+## Output Provenance (Facts vs Analysis)
+
+Audit outputs intentionally separate:
+
+- **Measured facts**: raw collector outputs (`collector_results.*.data`) and evidence captured from the local host.
+- **Derived analysis**: rule/aggregation results (`all_findings`, severities, rollups) computed deterministically by the tool.
+- **AI-assisted analysis**: content produced when `ai_config.provider` is `anthropic` or `openai` (e.g., `ai_analysis`, generated remediation scripts).
+
+AI-assisted content is non-authoritative, subject to human judgment, and covered by the AI Operations and Governance Policy (AI‑GOV‑007). For a concise field-level contract, see `docs/output_contract.md`.
 
 ## Deployment
 
