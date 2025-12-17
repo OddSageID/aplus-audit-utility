@@ -200,7 +200,7 @@ def save_results(results, config):
 
         for check_id, script_data in results["remediation_scripts"].items():
             script_file = scripts_dir / script_data["filename"]
-            with open(script_file, "w") as f:
+            with open(script_file, "w", encoding="utf-8", newline="\n") as f:
                 f.write(script_data["content"])
 
         output_files.append(("Remediation Scripts", scripts_dir))

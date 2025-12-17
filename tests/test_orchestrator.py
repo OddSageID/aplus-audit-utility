@@ -13,6 +13,7 @@ from src.core.config import AuditConfig, AIConfig
 from src.core.logger import setup_logger, get_logger
 from src.core.orchestrator import AuditOrchestrator
 from src.core.metrics import MetricsCollector, MetricType
+from src.core.orchestrator import _sanitize_check_id_for_filename
 
 
 # ============================================================================
@@ -475,3 +476,27 @@ class TestErrorHandling:
         except (ValueError, TypeError):
             # Expected behavior
             pass
+
+
+class TestRemediationFilenameSanitization:
+    @pytest.mark.parametrize(
+        ("check_id", "expected"),
+        [
+            ("../evil", "evil"),
+            (r"..\\evil", "evil"),
+            (r"C:\\Windows\\System32", "C_Windows_System32"),
+            ("a/b", "a_b"),
+            (r"a\\b", "a_b"),
+            ("a:b", "a_b"),
+            ("CIS-10.1-001", "CIS-10.1-001"),
+        ],
+    )
+    def test_sanitize_check_id_for_filename(self, check_id, expected):
+        sanitized = _sanitize_check_id_for_filename(check_id)
+        assert sanitized == expected
+        assert len(sanitized) <= 80
+        assert "/" not in sanitized
+        assert "\\" not in sanitized
+        assert ":" not in sanitized
+        assert ".." not in sanitized
+        assert all(ch.isalnum() or ch in "._-" for ch in sanitized)

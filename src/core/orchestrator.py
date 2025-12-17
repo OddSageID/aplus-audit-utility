@@ -2,6 +2,7 @@ from datetime import datetime
 import asyncio
 import json
 import platform
+import re
 import time
 import uuid
 from typing import Any, Dict, List, Optional
@@ -14,6 +15,18 @@ from .metrics import AuditMetrics, MetricsCollector
 from ..collectors.base_collector import BaseCollector, CollectorStatus
 from ..analyzers.ai_analyzer import AIAnalyzer
 from ..database.repository import AuditRepository
+
+
+def _sanitize_check_id_for_filename(check_id: str, max_length: int = 80) -> str:
+    value = str(check_id or "")
+    value = re.sub(r"[^A-Za-z0-9._-]", "_", value)
+    while ".." in value:
+        value = value.replace("..", "_")
+    value = re.sub(r"_+", "_", value).strip("_")
+    value = value[:max_length]
+    if not value or not re.search(r"[A-Za-z0-9]", value):
+        return "check"
+    return value
 
 
 class AuditOrchestrator:  # pylint: disable=too-many-instance-attributes
@@ -343,7 +356,8 @@ class AuditOrchestrator:  # pylint: disable=too-many-instance-attributes
                 )
 
                 extension = "ps1" if self.audit_results["platform"] == "Windows" else "sh"
-                script_filename = f"remediate_{finding['check_id']}.{extension}"
+                safe_check_id = _sanitize_check_id_for_filename(finding.get("check_id", ""))
+                script_filename = f"remediate_{safe_check_id}.{extension}"
                 self.audit_results["remediation_scripts"][finding["check_id"]] = {
                     "filename": script_filename,
                     "content": script,
