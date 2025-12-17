@@ -1,8 +1,9 @@
 from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime
-from jinja2 import Template
 from dataclasses import dataclass
+
+from jinja2 import Environment, Template, select_autoescape
 
 
 @dataclass
@@ -206,7 +207,8 @@ class HTMLReportGenerator:
 </body>
 </html>
         """
-        return Template(template_str)
+        env = Environment(autoescape=select_autoescape(enabled_extensions=("html", "xml")))
+        return env.from_string(template_str)
 
 
 HTMLReporter = HTMLReportGenerator

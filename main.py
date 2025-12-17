@@ -11,6 +11,7 @@ import argparse
 import asyncio
 import json
 import sys
+import traceback
 from datetime import datetime
 from pathlib import Path
 
@@ -217,7 +218,10 @@ def main():
         config = build_config(validated_args)
     except Exception as e:
         prefix = "[CONFIG ERROR]" if not unicode_ok else "❌ Configuration error:"
-        print(f"\n{prefix} {e}")
+        message = f"{e.__class__.__name__}: {e}" if args.verbose else str(e)
+        print(f"\n{prefix} {message}")
+        if args.verbose:
+            traceback.print_exc()
         sys.exit(1)
 
     collectors = get_collectors(config, args)
@@ -254,10 +258,9 @@ def main():
         sys.exit(130)
     except Exception as e:
         fail_icon = "[ERROR]" if not unicode_ok else "❌ Audit failed:"
-        print(f"\n\n{fail_icon} {str(e)}")
+        message = f"{e.__class__.__name__}: {e}" if args.verbose else str(e)
+        print(f"\n\n{fail_icon} {message}")
         if args.verbose:
-            import traceback
-
             traceback.print_exc()
         sys.exit(1)
 

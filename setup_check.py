@@ -15,10 +15,30 @@ import argparse
 import json
 
 
+def _supports_unicode() -> bool:
+    """Return True if stdout encoding can render common Unicode characters."""
+    encoding = sys.stdout.encoding
+    if not encoding:
+        return False
+    try:
+        "✓→".encode(encoding)
+    except (UnicodeEncodeError, LookupError):
+        return False
+    return True
+
+
+USE_ASCII = not _supports_unicode()
+if USE_ASCII and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(errors="replace")
+
+
 def print_header():
     """Print script header"""
     print("\n" + "=" * 70)
-    print("🔍 A+ SYSTEM AUDIT UTILITY - SETUP VALIDATION")
+    if USE_ASCII:
+        print("A+ SYSTEM AUDIT UTILITY - SETUP VALIDATION")
+    else:
+        print("🔍 A+ SYSTEM AUDIT UTILITY - SETUP VALIDATION")
     print("=" * 70 + "\n")
 
 
@@ -172,6 +192,8 @@ def check_database() -> bool:
     try:
         import sqlalchemy
 
+        _ = sqlalchemy
+
         # Test SQLite connection
         db_file = Path("./audit_history.db")
         if db_file.exists():
@@ -232,7 +254,10 @@ def check_platform_specifics() -> None:
 def print_quick_start() -> None:
     """Print quick start instructions"""
     print("\n" + "=" * 70)
-    print("🚀 QUICK START COMMANDS")
+    if USE_ASCII:
+        print("QUICK START COMMANDS")
+    else:
+        print("🚀 QUICK START COMMANDS")
     print("=" * 70)
     print("\nBasic usage:")
     print("  python main.py              # Full audit with AI analysis")
